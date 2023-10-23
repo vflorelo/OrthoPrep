@@ -71,7 +71,7 @@ fi                                                     #
 ########################################################
 
 #####################################################################
-if [ -z "${control_file}" ]                                          #
+if [ -z "${control_file}" ]                                         #
 then                                                                #
     echo "No control file specified, proceeding in normal mode"     #
     run_mode="normal"                                               #
@@ -203,10 +203,12 @@ fi                                                                              
 ##############################################################################################
 
 echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}
-#command_list=$(orthofinder.py -S diamond      -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-12
+#command_list=$(orthofinder.py -S diamond_ulow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3
+command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-6
+#command_list=$(orthofinder.py -S diamond_low  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-12
 #command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-15
-command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
-#command_list=$(orthofinder.py -S diamond_def -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)
+#command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
+#command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
 num_commands=$(echo "${command_list}" | wc -l)
 echo "Step 2. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file}
 echo "${command_list}" | parallel -j ${threads}
