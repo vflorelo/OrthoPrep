@@ -56,7 +56,7 @@ do
     case $1 in
         --fasta_dir    )
             shift
-            fasta_dir=$1
+            fasta_dir=$(realpath $1)
             ;;
         --no_masking   )
             no_masking="TRUE"
@@ -235,9 +235,6 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 #command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-15
 #command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
 #command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
-cd "${work_dir}"                                                                                     #
-work_dir=$(pwd)                                                                                      #
-cd "${cur_dir}"                                                                                      #
 ######################################################################################################
 
 ########################################################################################
@@ -263,7 +260,7 @@ fi                                                                              
 ########################################################################################
 if [ "${no_eff_len}" == "FALSE" ]                                                      #
 then                                                                                   #
-    op_lcr_preprocess.sh "${work_dir}" "${threads}" "${no_masking}"                    #
+    op_lcr_preprocess.sh "${work_dir}" "${cur_dir}" "${threads}" "${no_masking}"                    #
     if [ ! $? -eq 0 ]                                                                  #
     then                                                                               #
         echo "Something went wrong extracting LCRs from proteins" | tee -a ${log_file} #
