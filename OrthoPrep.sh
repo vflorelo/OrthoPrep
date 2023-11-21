@@ -238,7 +238,7 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 ######################################################################################################
 
 ########################################################################################
-echo "Step 2. Getting sequence lengths and effective lengths" | tee -a ${log_file}     #
+echo "Step 2. Getting sequence lengths" | tee -a ${log_file}                           #
 op_get_lengths.sh "${work_dir}"                                                        #
 if [ ! $? -eq 0 ]                                                                      #
 then                                                                                   #
@@ -260,7 +260,8 @@ fi                                                                              
 ########################################################################################
 if [ "${no_eff_len}" == "FALSE" ]                                                      #
 then                                                                                   #
-    op_lcr_preprocess.sh "${work_dir}" "${cur_dir}" "${threads}" "${no_masking}"                    #
+    echo "        Getting sequence effective lengths" | tee -a ${log_file}             #
+    op_lcr_preprocess.sh "${work_dir}" "${cur_dir}" "${threads}" "${no_masking}"       #
     if [ ! $? -eq 0 ]                                                                  #
     then                                                                               #
         echo "Something went wrong extracting LCRs from proteins" | tee -a ${log_file} #
