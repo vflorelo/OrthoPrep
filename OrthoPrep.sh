@@ -188,6 +188,9 @@ log_date=$(date +%y-%m-%d)                                          #
 log_file="OrthoPrep-${log_date}.log"                                #
 res_dir="Results_${cur_date}"                                       #
 work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory"     #
+cd "${work_dir}"                                                    #
+work_dir=$(pwd)                                                     #
+cd "${cur_dir}"                                                     #
 #####################################################################
 
 ############################################################################################################
@@ -276,7 +279,7 @@ echo "Step 3. Running ${num_commands} diamond commands in parallel" | tee -a ${l
 echo "${command_list}" | parallel -j ${threads}                                          #
 ##########################################################################################
 
-
+##########################################################################################
 echo "Step 4. Filtering BLAST results based on size differences" | tee -a ${log_file}
 echo "        Copying required files to destination directories" | tee -a ${log_file}
 if [ "${no_masking}" == "TRUE" ]

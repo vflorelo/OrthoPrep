@@ -3,12 +3,11 @@ cur_dir=$(pwd)
 work_dir=$1
 threads=$2
 no_masking=$3
+species_list_file="${work_dir}/SpeciesIDs.txt"
+species_num=$(cat ${species_list_file} | dos2unix | cut -d\: -f1)
 uuid=$(uuidgen | cut -d\- -f5)
 tmp_dir="${cur_dir}/tmp_${uuid}"
 mkdir "${tmp_dir}"
-cd ${tmp_dir}
-species_list_file="${work_dir}/SpeciesIDs.txt"
-species_num=$(cat ${species_list_file} | dos2unix | cut -d\: -f1)
 for num in ${species_num}
 do
     if [ -f "${work_dir}/Species${num}.fa" ]
