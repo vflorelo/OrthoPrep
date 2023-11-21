@@ -15,7 +15,7 @@ do
     then
         sizes_tsv_file="${work_dir}/Species${num}.sizes.tsv"
         cp "${work_dir}/Species${num}.fa" "${tmp_dir}"
-        run_flps_parallel.sh Species${num}.fa ${threads} Species${num}.flps.tsv
+        run_flps_parallel.sh "Species${num}.fa" "${threads}" "Species${num}.flps.tsv"
         awk 'BEGIN{FS="\t";OFS="\t"}{lcr_len=($6-($5-1))}{if(lcr_len>=10){print $1,$5-1,$6,$9,$8,"+"}}' Species${num}.flps.tsv | sortBed -i - > Species${num}.flps.bed
         seg Species${num}.fa -l | grep \> | perl -pe 's/>//;s/ .*complexity=/\t/;s/ .*//;s/\(/\t/;s/\)//' | awk 'BEGIN{FS="\t";OFS="\t"}{gsub("-","\t",$2)}1' | awk 'BEGIN{FS="\t";OFS="\t"}{lcr_len=$3-($2-1)}{if(lcr_len>=10){print $1,$2-1,$3,"seg",$4,"+"}}' | sortBed -i - > Species${num}.seg.bed
         intersectBed -a Species${num}.flps.bed -b Species${num}.seg.bed | mergeBed > Species${num}.lcr.bed
