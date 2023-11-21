@@ -317,9 +317,8 @@ then
     exit 0
 fi
 echo "        Removing temporary files" | tee -a ${log_file}
-rm ${work_dir}/Species*.sizes.tsv
-rm -rf ${cur_dir}/bckp
-rm -rf ${cur_dir}/
+#rm ${work_dir}/Species*.sizes.tsv
+#rm -rf ${cur_dir}/bckp
 echo ""  | tee -a ${log_file}
 echo "Finished filtering BLAST results" | tee -a ${log_file}
 echo "Files in the ${work_dir}/hq directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
