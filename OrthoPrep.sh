@@ -188,9 +188,6 @@ log_date=$(date +%y-%m-%d)                                          #
 log_file="OrthoPrep-${log_date}.log"                                #
 res_dir="Results_${cur_date}"                                       #
 work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory"     #
-cd "${work_dir}"                                                    #
-work_dir=$(pwd)                                                     #
-cd "${cur_dir}"                                                     #
 #####################################################################
 
 ############################################################################################################
@@ -238,6 +235,9 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 #command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-15
 #command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
 #command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
+cd "${work_dir}"                                                                                     #
+work_dir=$(pwd)                                                                                      #
+cd "${cur_dir}"                                                                                      #
 ######################################################################################################
 
 ########################################################################################
