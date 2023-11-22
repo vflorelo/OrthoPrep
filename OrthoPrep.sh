@@ -300,7 +300,7 @@ then
     seq_origin_dir="${prep_dir}"
 elif [ "${no_masking}" == "FALSE" ]
 then
-    seq_origin_dir="${cur_dir}/bckp"
+    seq_origin_dir="${prep_dir}/bckp"
 fi
 mkdir ${prep_dir}/WorkingDirectory
 cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/WorkingDirectory
@@ -316,14 +316,14 @@ do
             op_blast_filter.py ${prep_dir} ${short_frac} ${long_frac}
         elif [ "${run_mode}" == "custom" ]
         then
-            q_fasta=$(awk -v query="${query}"     'BEGIN{FS=": "}{if($1==query)  {print $2}}' ${prep_dir}/SequenceIDs.txt)
-            s_fasta=$(awk -v subject="${subject}" 'BEGIN{FS=": "}{if($1==subject){print $2}}' ${prep_dir}/SequenceIDs.txt)
+            q_fasta=$(awk -v query="${query}"     'BEGIN{FS=": "}{if($1==query)  {print $2}}' ${prep_dir}/SpeciesIDs.txt)
+            s_fasta=$(awk -v subject="${subject}" 'BEGIN{FS=": "}{if($1==subject){print $2}}' ${prep_dir}/SpeciesIDs.txt)
             short_frac=$(awk -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $3}}' ${control_file})
             long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
         fi
         op_blast_filter.py ${prep_dir} ${query} ${subject} ${sequence_len_file} ${short_frac} ${long_frac}
     done
-fi
+done
 if [ ! $? -eq 0 ]
 then
     echo "Something went wrong while filtering BLAST results" | tee -a ${log_file}

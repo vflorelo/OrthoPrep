@@ -43,5 +43,6 @@ do
     then
         maskFastaFromBed -fi Species${num}.fa -bed Species${num}.lcr.bed -fo ${prep_dir}/Species${num}.fa -mc X
     fi
+    rm Species${num}.seq.tsv Species${num}.len.tsv
 done
 cat Species*.lcr.tsv | awk 'BEGIN{FS="\t"}{print $1 "@" $1 FS $2}' | perl -pe 's/_.*\@/\t/' > "${sequence_len_file}"
