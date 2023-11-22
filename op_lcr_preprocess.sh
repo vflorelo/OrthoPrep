@@ -31,7 +31,7 @@ do
     if [ -f "${prep_dir}/Species${num}.fa" ]
     then       
         cp "${prep_dir}/Species${num}.fa" "${lcr_dir}"
-        grep ^"${num}_" "${sequence_len_file}" > "${sizes_tsv_file}"
+        grep -w ^"${num}" "${sequence_len_file}" > "${sizes_tsv_file}"
         CompositionMaker Species${num}.fa
         perl -pe 'if(/\>/){s/$/\t/};s/\n//g;s/\>/\n\>/g' Species${num}.fa | tail -n+2 > Species${num}.seq.tsv
         seq_id_list=$(cut -f1 "${sizes_tsv_file}" | sort -V | uniq)
