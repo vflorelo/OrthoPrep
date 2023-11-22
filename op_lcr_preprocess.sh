@@ -14,8 +14,8 @@ get_eff_len() {
     seq_id=$1
     len_tsv_file=$2
     lcr_bed_file=$3
-    lcr_len=$(grep -w ^"${seq_id}" "${lcr_bed_file}"  | awk 'BEGIN{FS="\t"}{lcr_len+=($3-$2)}END{print lcr_len}')
-    seq_len=$(grep -w ^"${seq_id}" "${len_tsv_file}"  | cut -f3)
+    lcr_len=$(grep -w "${seq_id}" "${lcr_bed_file}"  | awk 'BEGIN{FS="\t"}{lcr_len+=($3-$2)}END{print lcr_len}')
+    seq_len=$(grep -w "${seq_id}" "${len_tsv_file}"  | cut -f3)
     echo -e "${seq_id}\t${seq_len}\t${lcr_len}"  | awk 'BEGIN{FS="\t";OFS="\t"}{print $1,$2-$3}'
     }
 export -f run_flps
