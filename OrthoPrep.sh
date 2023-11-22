@@ -236,7 +236,8 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 #command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
 #command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
 ######################################################################################################
-
+echo "${command_list}"
+exit
 ########################################################################################
 echo "Step 2. Getting sequence lengths" | tee -a ${log_file}                           #
 op_get_lengths.sh "${work_dir}"                                                        #
