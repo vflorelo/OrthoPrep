@@ -38,6 +38,7 @@ s_len_df = s_len_df.rename(columns={"seqid":"sseqid","len":"slen"})
 s_len_df = s_len_df.drop(columns=['species'])
 blast_df = pd.merge(blast_df,q_len_df,on="qseqid")
 blast_df = pd.merge(blast_df,s_len_df,on="sseqid")
+print(blast_df.columns)
 blast_df["pair_cat"] = blast_df.apply(lambda x : filter_by_len(x["qlen"],x["slen"],short_frac,long_frac), axis=1)
 op_blast_df = blast_df.copy()
 op_blast_df = op_blast_df[op_blast_df["pair_cat"]=="hq"]
