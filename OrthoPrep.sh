@@ -228,44 +228,50 @@ fi                                                                              
 ##############################################################################################
 
 
-######################################################################################################
-echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                      #
-mkdir -p "${prep_dir}"
-#command_list=$(orthofinder.py -S diamond_ulow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3
-command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-6
-#command_list=$(orthofinder.py -S diamond_low  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-12
-#command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-15
-#command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
-#command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
-######################################################################################################
-command_list=$(echo "${command_list}" | sed -e "s|--out ${work_dir}|--out ${prep_dir}|")
-echo "${command_list}"
-exit
+#######################################################################################################
+echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                       #
+mkdir -p "${prep_dir}"                                                                                #
+#command_list=$(orthofinder.py -S diamond_ulow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-3
+command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)   # <- 1e-6
+#command_list=$(orthofinder.py -S diamond_low  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-12
+#command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-15
+#command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-18
+#command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-3 no masking
+command_list=$(echo "${command_list}" | sed -e "s|${work_dir}|${prep_dir}|g")                         #
+cp "${work_dir}/Species*.fa" "${work_dir}/SequenceIDs.txt" "${work_dir}/SpeciesIDs.txt" "${prep_dir}" #
+#######################################################################################################
+
+
 ########################################################################################
 echo "Step 2. Getting sequence lengths" | tee -a ${log_file}                           #
-op_get_lengths.sh "${work_dir}"                                                        #
+species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)                              #
+fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                                      #
+if [ "${species_count}" -eq "${fasta_count}" ]
+then
+    cat ${prep_dir}/Species*.fa \
+        | dos2unix \
+        | perl -pe 'if(/\>/){s/$/\t/};s/\n//g;s/\>/\n/g' \
+        | tail -n+2 \
+        | sort -V \
+        | uniq \
+        | awk 'BEGIN{FS="\t"}{print $1 FS length($2)}' > ${prep_dir}/Sequence_len.tsv  #
+    if [ "${no_masking}" == "FALSE" ]                                                  #
+    then                                                                               #
+        mkdir ${prep_dir}/bckp                                                         #
+        cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                                    #
+    fi                                                                                 #
+fi
 if [ ! $? -eq 0 ]                                                                      #
 then                                                                                   #
     echo "Something went wrong while extracting sequence lengths" | tee -a ${log_file} #
     echo "Aborting" | tee -a ${log_file}                                               #
     exit 0                                                                             #
 fi                                                                                     #
-if [ "${no_masking}" == "FALSE" ]                                                      #
-then                                                                                   #
-    mkdir ${cur_dir}/bckp                                                              #
-    op_bckp_seqs.sh "${work_dir}"                                                      #
-    if [ ! $? -eq 0 ]                                                                  #
-    then                                                                               #
-        echo "Something went wrong backing up sequences" | tee -a ${log_file}          #
-        echo "Aborting" | tee -a ${log_file}                                           #
-        exit 0                                                                         #
-    fi                                                                                 #
-fi                                                                                     #
 ########################################################################################
 if [ "${no_eff_len}" == "FALSE" ]                                                      #
 then                                                                                   #
     echo "        Getting sequence effective lengths" | tee -a ${log_file}             #
-    op_lcr_preprocess.sh "${work_dir}" "${cur_dir}" "${threads}" "${no_masking}"       #
+    op_lcr_preprocess.sh "${prep_dir}" "${cur_dir}" "${threads}" "${no_masking}"       #
     if [ ! $? -eq 0 ]                                                                  #
     then                                                                               #
         echo "Something went wrong extracting LCRs from proteins" | tee -a ${log_file} #
@@ -286,18 +292,18 @@ echo "Step 4. Filtering BLAST results based on size differences" | tee -a ${log_
 echo "        Copying required files to destination directories" | tee -a ${log_file}
 if [ "${no_masking}" == "TRUE" ]
 then
-    seq_origin_dir="${work_dir}"
+    seq_origin_dir="${prep_dir}"
 elif [ "${no_masking}" == "FALSE" ]
 then
     seq_origin_dir="${cur_dir}/bckp"
 fi
-mkdir ${work_dir}/hq ${work_dir}/mq
-cp ${work_dir}/SequenceIDs.txt ${work_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${work_dir}/hq
-cp ${work_dir}/SequenceIDs.txt ${work_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${work_dir}/mq
+mkdir ${prep_dir}/hq ${prep_dir}/mq
+cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/hq
+cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/mq
 echo "        Filtering pairs" | tee -a ${log_file}
 if [ "${run_mode}" == "normal" ]
 then
-    op_blast_filter.py ${work_dir} ${short_frac} ${long_frac}
+    op_blast_filter.py ${prep_dir} ${short_frac} ${long_frac}
 elif [ "${run_mode}" == "custom" ]
 then
     num_comparisons=$(cat ${control_file} | wc -l)
@@ -307,12 +313,12 @@ then
         subject=$(tail -n+${i} ${control_file} | head -n1 | cut -f2)
         cur_sf=$(tail  -n+${i} ${control_file} | head -n1 | cut -f3)
         cur_lf=$(tail  -n+${i} ${control_file} | head -n1 | cut -f4)
-        query_id=$(grep   -w "${query}"   ${work_dir}/SpeciesIDs.txt | cut -d\: -f1)
-        subject_id=$(grep -w "${subject}" ${work_dir}/SpeciesIDs.txt | cut -d\: -f1)
+        query_id=$(grep   -w "${query}"   ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
+        subject_id=$(grep -w "${subject}" ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
         blast_file="Blast${query_id}_${subject_id}.txt.gz"
         query_size_file="Species${query_id}.sizes.tsv"
         subject_size_file="Species${subject_id}.sizes.tsv"
-        op_c_blast_filter.py ${work_dir} ${blast_file} ${query_size_file} ${subject_size_file} ${cur_sf} ${cur_lf}
+        op_c_blast_filter.py ${prep_dir} ${blast_file} ${query_size_file} ${subject_size_file} ${cur_sf} ${cur_lf}
     done
 fi
 if [ ! $? -eq 0 ]
@@ -326,16 +332,16 @@ echo "        Removing temporary files" | tee -a ${log_file}
 #rm -rf ${cur_dir}/bckp
 echo ""  | tee -a ${log_file}
 echo "Finished filtering BLAST results" | tee -a ${log_file}
-echo "Files in the ${work_dir}/hq directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
+echo "Files in the ${prep_dir}/hq directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "Files in the ${work_dir}/hq directory were obtained by applying more relaxed filters to the BLAST results" | tee -a ${log_file}
+echo "Files in the ${prep_dir}/hq directory were obtained by applying more relaxed filters to the BLAST results" | tee -a ${log_file}
 echo | tee -a ${log_file}
 echo "Now you can resume OrthoFinder by running:" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "orthofinder.py -b ${work_dir}/hq [other OrthoFinder options]" | tee -a ${log_file}
+echo "orthofinder.py -b ${prep_dir}/hq [other OrthoFinder options]" | tee -a ${log_file}
 echo | tee -a ${log_file}
 echo "or" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "orthofinder.py -b ${work_dir}/mq [other OrthoFinder options]" | tee -a ${log_file}
+echo "orthofinder.py -b ${prep_dir}/mq [other OrthoFinder options]" | tee -a ${log_file}
 echo  | tee -a ${log_file}
 echo "OrthoPrep.sh v0.0.1"
