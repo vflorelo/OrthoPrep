@@ -29,7 +29,7 @@ sequence_len_df = pd.read_csv(len_file,header=None,sep="\t")
 sequence_len_df.columns = ["species","seqid","len"]
 blast_columns = ["qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore"]
 q_len_df = sequence_len_df.copy()
-q_len_df = q_len_df[s_len_df["species"]==query]
+q_len_df = q_len_df[q_len_df["species"]==query]
 q_len_df.rename(columns={"seqid":"qseqid"})
 q_len_df.drop(columns=['species'])
 s_len_df = sequence_len_df.copy()

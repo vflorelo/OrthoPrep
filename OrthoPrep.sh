@@ -317,8 +317,7 @@ do
             short_frac=$(awk -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $3}}' ${control_file})
             long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
         fi
-        blast_file="Blast${query}_${subject}.txt.gz"
-        op_blast_filter.py ${prep_dir} ${blast_file} ${sequence_len_file} ${short_frac} ${long_frac}
+        op_blast_filter.py ${prep_dir} ${query} ${subject} ${sequence_len_file} ${short_frac} ${long_frac}
     done
 fi
 if [ ! $? -eq 0 ]
