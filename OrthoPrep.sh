@@ -184,10 +184,11 @@ fi                                                 #
 #####################################################################
 cur_date=$(date +%h%d)                                              #
 cur_dir=$(pwd)                                                      #
-log_date=$(date +%y-%m-%d)                                          #
-log_file="OrthoPrep-${log_date}.log"                                #
+prep_date=$(date +%y-%m-%d)                                         #
+log_file="OrthoPrep-${prep_date}.log"                               #
 res_dir="Results_${cur_date}"                                       #
 work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory"     #
+prep_dir="${cur_dir}/OrthoPrep-${prep_date}"                        #
 #####################################################################
 
 ############################################################################################################
@@ -229,6 +230,7 @@ fi                                                                              
 
 ######################################################################################################
 echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                      #
+mkdir -p "${prep_dir}"
 #command_list=$(orthofinder.py -S diamond_ulow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3
 command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-6
 #command_list=$(orthofinder.py -S diamond_low  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-12
@@ -236,6 +238,7 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 #command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
 #command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
 ######################################################################################################
+command_list=$(echo "${command_list}" | sed -e 's|--out ${work_dir}|--out ${prep_dir}|')
 echo "${command_list}"
 exit
 ########################################################################################
