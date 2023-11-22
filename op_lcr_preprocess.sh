@@ -27,6 +27,7 @@ mkdir -p "${lcr_dir}"
 cd ${lcr_dir}
 for num in ${species_num}
 do
+    echo ${num}
     if [ -f "${prep_dir}/Species${num}.fa" ]
     then       
         cp "${prep_dir}/Species${num}.fa" "${lcr_dir}"
