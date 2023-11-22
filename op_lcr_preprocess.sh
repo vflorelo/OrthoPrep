@@ -21,7 +21,6 @@ export -f run_flps
 export -f get_eff_len
 species_list_file="${prep_dir}/SpeciesIDs.txt"
 sequence_len_file="${prep_dir}/Sequence_len.tsv"
-echo "${sequence_len_file}"
 species_num=$(cat ${species_list_file} | dos2unix | cut -d\: -f1)
 uuid=$(uuidgen | cut -d\- -f5)
 lcr_dir="${prep_dir}/LCR_${uuid}"
