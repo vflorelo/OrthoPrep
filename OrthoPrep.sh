@@ -246,45 +246,26 @@ cp  "${work_dir}"/Species*.fa \
 #######################################################################################################
 
 
-########################################################################################
-species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)                              #
-fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                                      #
-if [ "${species_count}" -eq "${fasta_count}" ]                                         #
-then                                                                                   #
-    echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}                   #
-    echo "        Calculating sequence lengths" | tee -a ${log_file}                   #
-    cat ${prep_dir}/Species*.fa \
-        | dos2unix \
-        | perl -pe 'if(/\>/){s/$/\t/};s/\n//g;s/\>/\n/g' \
-        | tail -n+2 \
-        | sort -V \
-        | uniq \
-        | awk 'BEGIN{FS="\t"}{print $1 "@" $1 FS length($2)}' \
-        | perl -pe 's/_.*\@/\t/' > ${prep_dir}/Sequence_len.tsv                        #
-    if [ ! $? -eq 0 ]                                                                  #
-    then                                                                               #
-        echo "Error produced getting sequence lengths" | tee -a ${log_file}            #
-        echo "Aborting" | tee -a ${log_file}                                           #
-        exit 0                                                                         #
-    fi                                                                                 #
-    if [ "${no_masking}" == "FALSE" ]                                                  #
-    then                                                                               #
-        mkdir ${prep_dir}/bckp                                                         #
-        cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                                    #
-    fi                                                                                 #
-    if [ "${no_eff_len}" == "FALSE" ]                                                  #
-    then                                                                               #
-        echo "        Calculating effective lengths" | tee -a ${log_file}              #
-        op_lcr_preprocess.sh ${prep_dir} ${threads} ${no_masking}                      #
-        if [ ! $? -eq 0 ]                                                              #
-        then                                                                           #
-            echo "Error produced extracting LCRs" | tee -a ${log_file}                 #
-            echo "Aborting" | tee -a ${log_file}                                       #
-            exit 0                                                                     #
-        fi                                                                             #
-    fi                                                                                 #
-fi                                                                                     #
-########################################################################################
+#############################################################################
+species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)                   #
+fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                           #
+if [ "${species_count}" -eq "${fasta_count}" ]                              #
+then                                                                        #
+    echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}        #
+    if [ "${no_masking}" == "FALSE" ]                                       #
+    then                                                                    #
+        mkdir ${prep_dir}/bckp                                              #
+        cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                         #
+    fi                                                                      #
+    op_lcr_preprocess.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len} #
+    if [ ! $? -eq 0 ]                                                       #
+    then                                                                    #
+        echo "Error produced extracting LCRs" | tee -a ${log_file}          #
+        echo "Aborting" | tee -a ${log_file}                                #
+        exit 0                                                              #
+    fi                                                                      #
+fi                                                                          #
+#############################################################################
 
 ##########################################################################################
 num_commands=$(echo "${command_list}" | wc -l)                                           #
@@ -306,7 +287,7 @@ mkdir ${prep_dir}/WorkingDirectory
 cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/WorkingDirectory
 echo "        Filtering pairs" | tee -a ${log_file}
 species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
-sequence_len_file="Sequence_len.tsv"
+eff_len_file="Sequence_eff_len.tsv"
 for query in ${species_num}
 do
     for subject in ${species_num}
@@ -321,7 +302,7 @@ do
             short_frac=$(awk -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $3}}' ${control_file})
             long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
         fi
-        op_blast_filter.py ${prep_dir} ${query} ${subject} ${sequence_len_file} ${short_frac} ${long_frac}
+        op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}
     done
 done
 if [ ! $? -eq 0 ]
