@@ -34,7 +34,7 @@ q_len_df = q_len_df.rename(columns={"seqid":"qseqid"})
 q_len_df = q_len_df.drop(columns=['species'])
 s_len_df = sequence_len_df.copy()
 s_len_df = s_len_df[s_len_df["species"]==subject]
-s_len_df = s_len_df.rename(columns={"seqid":"qseqid"})
+s_len_df = s_len_df.rename(columns={"seqid":"sseqid"})
 s_len_df = s_len_df.drop(columns=['species'])
 op_blast_file = prep_dir+"/WorkingDirectory/Blast"+query+"_"+subject+".txt.gz"
 blast_df   = pd.read_csv(blast_file,header=None,sep="\t")
