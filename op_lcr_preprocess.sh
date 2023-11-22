@@ -7,7 +7,7 @@ run_flps() {
     species=$(echo ${seq_id} | cut -d_ -f1)
     seq_tsv_file=$2
     comp_file=$3
-    fLPS2 -t 1e-6 -m 5 -M 25 <(grep -w "${seq_id}" "${seq_tsv_file}" 2>> ${species}.flps.err | perl -pe 's/\t/\n/') -z thorough -c ${comp_file} | grep -wv WHOLE
+    fLPS2 -t 1e-6 -m 5 -M 25 <(grep -w "${seq_id}" "${seq_tsv_file}" | perl -pe 's/\t/\n/') -z thorough -c ${comp_file} 2>> ${species}.err | grep -wv WHOLE
     }
 get_eff_len() {
     seq_id=$1
