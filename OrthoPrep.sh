@@ -271,7 +271,7 @@ then                                                                            
     if [ "${no_eff_len}" == "FALSE" ]                                                  #
     then                                                                               #
         echo "        Calculating effective lengths" | tee -a ${log_file}              #
-        echo "${prep_dir}"
+        echo op_lcr_preprocess.sh "${prep_dir}" "${threads}" "${no_masking}"
         op_lcr_preprocess.sh "${prep_dir}" "${threads}" "${no_masking}"                #
         if [ ! $? -eq 0 ]                                                              #
         then                                                                           #
