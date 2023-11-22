@@ -256,7 +256,7 @@ then                                                                            
         | sort -V \
         | uniq \
         | awk 'BEGIN{FS="\t"}{print $1 "@" $1 FS length($2)}' \
-        | perl -pe 's/_.*\@/\t/' > ${prep_dir}/Sequence_len.tsv                        #
+        | perl -pe 's/_.*\@/\t/' | tee -a ${prep_dir}/Sequence_len.tsv                        #
     if [ ! $? -eq 0 ]                                                                  #
     then                                                                               #
         echo "Error produced getting sequence lengths" | tee -a ${log_file}            #
