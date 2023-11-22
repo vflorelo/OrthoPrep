@@ -33,7 +33,7 @@ do
     grep -w ^${num} ${sequence_len_file} > ${len_tsv_file}
     CompositionMaker Species${num}.fa
     perl -pe 'if(/\>/){s/$/\t/};s/\n//g;s/\>/\n\>/g' Species${num}.fa | tail -n+2 > Species${num}.seq.tsv
-    seq_id_list=$(cut -f1 "${len_tsv_file}" | sort -V | uniq)
+    seq_id_list=$(cut -f2 "${len_tsv_file}" | sort -V | uniq)
     parallel -j ${threads} run_flps ::: "${seq_id_list[@]}" ::: Species${num}.seq.tsv ::: Species${num}.fa.COMPOSITION | sort -V | uniq > Species${num}.flps.tsv
     awk 'BEGIN{FS="\t";OFS="\t"}{lcr_len=($6-($5-1))}{if(lcr_len>=10){print $1,$5-1,$6,$9,$8,"+"}}' Species${num}.flps.tsv | sortBed -i - > Species${num}.flps.bed
     seg Species${num}.fa -l | grep \> | perl -pe 's/>//;s/ .*complexity=/\t/;s/ .*//;s/\(/\t/;s/\)//' | awk 'BEGIN{FS="\t";OFS="\t"}{gsub("-","\t",$2)}1' | awk 'BEGIN{FS="\t";OFS="\t"}{lcr_len=$3-($2-1)}{if(lcr_len>=10){print $1,$2-1,$3,"seg",$4,"+"}}' | sortBed -i - > Species${num}.seg.bed
