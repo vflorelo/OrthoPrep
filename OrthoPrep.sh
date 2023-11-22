@@ -238,7 +238,7 @@ command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^dia
 #command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-18
 #command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) # <- 1e-3 no masking
 ######################################################################################################
-command_list=$(echo "${command_list}" | sed -e 's|--out ${work_dir}|--out ${prep_dir}|')
+command_list=$(echo "${command_list}" | sed -e "s|--out ${work_dir}|--out ${prep_dir}|")
 echo "${command_list}"
 exit
 ########################################################################################
