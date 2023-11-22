@@ -243,40 +243,41 @@ cp "${work_dir}/Species*.fa" "${work_dir}/SequenceIDs.txt" "${work_dir}/SpeciesI
 
 
 ########################################################################################
-echo "Step 2. Getting sequence lengths" | tee -a ${log_file}                           #
 species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)                              #
 fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                                      #
-if [ "${species_count}" -eq "${fasta_count}" ]
-then
+if [ "${species_count}" -eq "${fasta_count}" ]                                         #
+then                                                                                   #
+    echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}                   #
+    echo "        Calculating sequence lengths" | tee -a ${log_file}                   #
     cat ${prep_dir}/Species*.fa \
         | dos2unix \
         | perl -pe 'if(/\>/){s/$/\t/};s/\n//g;s/\>/\n/g' \
         | tail -n+2 \
         | sort -V \
         | uniq \
-        | awk 'BEGIN{FS="\t"}{print $1 FS length($2)}' > ${prep_dir}/Sequence_len.tsv  #
+        | awk 'BEGIN{FS="\t"}{print $1 "@" $1 FS length($2)}' \
+        | perl -pe 's/_.*\@/\t/' > ${prep_dir}/Sequence_len.tsv                        #
+    if [ ! $? -eq 0 ]                                                                  #
+    then                                                                               #
+        echo "Error produced getting sequence lengths" | tee -a ${log_file}            #
+        echo "Aborting" | tee -a ${log_file}                                           #
+        exit 0                                                                         #
+    fi                                                                                 #
     if [ "${no_masking}" == "FALSE" ]                                                  #
     then                                                                               #
         mkdir ${prep_dir}/bckp                                                         #
         cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                                    #
     fi                                                                                 #
-fi
-if [ ! $? -eq 0 ]                                                                      #
-then                                                                                   #
-    echo "Something went wrong while extracting sequence lengths" | tee -a ${log_file} #
-    echo "Aborting" | tee -a ${log_file}                                               #
-    exit 0                                                                             #
-fi                                                                                     #
-########################################################################################
-if [ "${no_eff_len}" == "FALSE" ]                                                      #
-then                                                                                   #
-    echo "        Getting sequence effective lengths" | tee -a ${log_file}             #
-    op_lcr_preprocess.sh "${prep_dir}" "${cur_dir}" "${threads}" "${no_masking}"       #
-    if [ ! $? -eq 0 ]                                                                  #
+    if [ "${no_eff_len}" == "FALSE" ]                                                  #
     then                                                                               #
-        echo "Something went wrong extracting LCRs from proteins" | tee -a ${log_file} #
-        echo "Aborting" | tee -a ${log_file}                                           #
-        exit 0                                                                         #
+        echo "        Calculating effective lengths" | tee -a ${log_file}              #
+        op_lcr_preprocess.sh "${prep_dir}" "${threads}" "${no_masking}"                #
+        if [ ! $? -eq 0 ]                                                              #
+        then                                                                           #
+            echo "Error produced extracting LCRs" | tee -a ${log_file}                 #
+            echo "Aborting" | tee -a ${log_file}                                       #
+            exit 0                                                                     #
+        fi                                                                             #
     fi                                                                                 #
 fi                                                                                     #
 ########################################################################################
@@ -297,28 +298,27 @@ elif [ "${no_masking}" == "FALSE" ]
 then
     seq_origin_dir="${cur_dir}/bckp"
 fi
-mkdir ${prep_dir}/hq ${prep_dir}/mq
-cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/hq
-cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/mq
+mkdir ${prep_dir}/WorkingDirectory
+cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/WorkingDirectory
 echo "        Filtering pairs" | tee -a ${log_file}
-if [ "${run_mode}" == "normal" ]
-then
-    op_blast_filter.py ${prep_dir} ${short_frac} ${long_frac}
-elif [ "${run_mode}" == "custom" ]
-then
-    num_comparisons=$(cat ${control_file} | wc -l)
-    for i in $(seq 1 ${num_comparisons})
+species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
+sequence_len_file="Sequence_len.tsv"
+for query in ${species_num}
+do
+    for subject in ${species_num}
     do
-        query=$(tail   -n+${i} ${control_file} | head -n1 | cut -f1)
-        subject=$(tail -n+${i} ${control_file} | head -n1 | cut -f2)
-        cur_sf=$(tail  -n+${i} ${control_file} | head -n1 | cut -f3)
-        cur_lf=$(tail  -n+${i} ${control_file} | head -n1 | cut -f4)
-        query_id=$(grep   -w "${query}"   ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
-        subject_id=$(grep -w "${subject}" ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
-        blast_file="Blast${query_id}_${subject_id}.txt.gz"
-        query_size_file="Species${query_id}.sizes.tsv"
-        subject_size_file="Species${subject_id}.sizes.tsv"
-        op_c_blast_filter.py ${prep_dir} ${blast_file} ${query_size_file} ${subject_size_file} ${cur_sf} ${cur_lf}
+        if [ "${run_mode}" == "normal" ]
+        then
+            op_blast_filter.py ${prep_dir} ${short_frac} ${long_frac}
+        elif [ "${run_mode}" == "custom" ]
+        then
+            q_fasta=$(awk -v query="${query}"     'BEGIN{FS=": "}{if($1==query)  {print $2}}' ${prep_dir}/SequenceIDs.txt)
+            s_fasta=$(awk -v subject="${subject}" 'BEGIN{FS=": "}{if($1==subject){print $2}}' ${prep_dir}/SequenceIDs.txt)
+            short_frac=$(awk -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $3}}' ${control_file})
+            long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
+        fi
+        blast_file="Blast${query}_${subject}.txt.gz"
+        op_blast_filter.py ${prep_dir} ${blast_file} ${sequence_len_file} ${short_frac} ${long_frac}
     done
 fi
 if [ ! $? -eq 0 ]
@@ -332,16 +332,12 @@ echo "        Removing temporary files" | tee -a ${log_file}
 #rm -rf ${cur_dir}/bckp
 echo ""  | tee -a ${log_file}
 echo "Finished filtering BLAST results" | tee -a ${log_file}
-echo "Files in the ${prep_dir}/hq directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
+echo "Files in the ${prep_dir}/WorkingDirectory directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "Files in the ${prep_dir}/hq directory were obtained by applying more relaxed filters to the BLAST results" | tee -a ${log_file}
+echo "Files in the ${prep_dir}/WorkingDirectory directory were obtained by applying more relaxed filters to the BLAST results" | tee -a ${log_file}
 echo | tee -a ${log_file}
 echo "Now you can resume OrthoFinder by running:" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "orthofinder.py -b ${prep_dir}/hq [other OrthoFinder options]" | tee -a ${log_file}
+echo "orthofinder.py -b ${prep_dir}/WorkingDirectory [other OrthoFinder options]" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "or" | tee -a ${log_file}
-echo | tee -a ${log_file}
-echo "orthofinder.py -b ${prep_dir}/mq [other OrthoFinder options]" | tee -a ${log_file}
-echo  | tee -a ${log_file}
-echo "OrthoPrep.sh v0.0.1"
+echo "OrthoPrep v0.0.1"
