@@ -189,6 +189,7 @@ log_file="OrthoPrep-${prep_date}.log"                               #
 res_dir="Results_${cur_date}"                                       #
 work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory"     #
 prep_dir="${cur_dir}/OrthoPrep-${prep_date}"                        #
+tmp_dir="${prep_dir}/tmp"
 #####################################################################
 
 ############################################################################################################
@@ -257,7 +258,7 @@ then                                                                        #
         mkdir ${prep_dir}/bckp                                              #
         cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                         #
     fi                                                                      #
-    op_lcr_preprocess.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len} #
+    op_get_eff_len.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len}    #
     if [ ! $? -eq 0 ]                                                       #
     then                                                                    #
         echo "Error produced extracting LCRs" | tee -a ${log_file}          #
@@ -275,19 +276,9 @@ echo "${command_list}" | parallel -j ${threads}                                 
 
 ##########################################################################################
 echo "Step 4. Filtering BLAST results based on size differences" | tee -a ${log_file}
-echo "        Copying required files to destination directories" | tee -a ${log_file}
-if [ "${no_masking}" == "TRUE" ]
-then
-    seq_origin_dir="${prep_dir}"
-elif [ "${no_masking}" == "FALSE" ]
-then
-    seq_origin_dir="${prep_dir}/bckp"
-fi
-mkdir ${prep_dir}/WorkingDirectory
-cp ${prep_dir}/SequenceIDs.txt ${prep_dir}/SpeciesIDs.txt ${seq_origin_dir}/Species*.fa ${prep_dir}/WorkingDirectory
-echo "        Filtering pairs" | tee -a ${log_file}
 species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
 eff_len_file="Sequence_eff_len.tsv"
+mkdir "${tmp_dir}"
 for query in ${species_num}
 do
     for subject in ${species_num}
@@ -303,6 +294,8 @@ do
             long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
         fi
         op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}
+        mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}/bckp
+        mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
     done
 done
 if [ ! $? -eq 0 ]
@@ -312,16 +305,13 @@ then
     exit 0
 fi
 echo "        Removing temporary files" | tee -a ${log_file}
-#rm ${work_dir}/Species*.sizes.tsv
-#rm -rf ${cur_dir}/bckp
+rm -rf ${tmp_dir}
 echo ""  | tee -a ${log_file}
 echo "Finished filtering BLAST results" | tee -a ${log_file}
-echo "Files in the ${prep_dir}/WorkingDirectory directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
-echo | tee -a ${log_file}
-echo "Files in the ${prep_dir}/WorkingDirectory directory were obtained by applying more relaxed filters to the BLAST results" | tee -a ${log_file}
+echo "Files in the ${prep_dir} directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
 echo | tee -a ${log_file}
 echo "Now you can resume OrthoFinder by running:" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "orthofinder.py -b ${prep_dir}/WorkingDirectory [other OrthoFinder options]" | tee -a ${log_file}
+echo "orthofinder.py -b ${prep_dir} [other OrthoFinder options]" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "OrthoPrep v0.0.1"
+echo "OrthoPrep v0.0.1" | tee -a ${log_file}
