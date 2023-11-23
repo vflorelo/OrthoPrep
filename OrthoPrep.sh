@@ -15,17 +15,18 @@ function usage(){
     echo " - Pairs of sequences with a size difference greater than the set threshold are excluded"
     echo
     echo "Options:"
-    echo "  --fasta_dir    -> Directory containing protein sequences in fasta format (mandatory)"
-    echo "  --no_eff_len   -> Turns off calculation of LCR based effective length, use at your own risk"
-    echo "  --no_masking   -> Turns off masking of LCRs, use at your own risk"
-    echo "  --short_frac   -> Maximum size difference fraction to be accepted (using smallest protein in pair as reference)"
-    echo "  --long_frac    -> Maximum size difference fraction to be accepted (using longest protein in pair as reference)"
-    echo "  --threads      -> Number of CPU threads to use"
-    echo "  --control_file -> Tab separated file containing short_frac and long_frac values for specific comparisons"
-    echo "                    The following format should be used"
-    echo "                    Species1.fasta Species2.fasta 0.30 0.25"
-    echo "                    Species1.fasta Species3.fasta 0.25 0.25"
-    echo "                    Species2.fasta Species3.fasta 0.15 0.25"
+    echo "  --fasta_dir     -> Directory containing protein sequences in fasta format (mandatory)"
+    echo "  --search_method -> Sequence similarity method to use in orthofinder (mandatory)"
+    echo "  --no_eff_len    -> Turns off calculation of LCR based effective length, use at your own risk"
+    echo "  --no_masking    -> Turns off masking of LCRs, use at your own risk"
+    echo "  --short_frac    -> Maximum size difference fraction to be accepted (using smallest protein in pair as reference)"
+    echo "  --long_frac     -> Maximum size difference fraction to be accepted (using longest protein in pair as reference)"
+    echo "  --threads       -> Number of CPU threads to use"
+    echo "  --control_file  -> Tab separated file containing short_frac and long_frac values for specific comparisons"
+    echo "                     The following format should be used"
+    echo "                     Species1.fasta Species2.fasta 0.30 0.25"
+    echo "                     Species1.fasta Species3.fasta 0.25 0.25"
+    echo "                     Species2.fasta Species3.fasta 0.15 0.25"
     echo
     echo "Notes:"
     echo "  --control_file and --long_frac/--short_frac options are mutually exclusive"
@@ -54,33 +55,37 @@ run_mode="normal"
 while [ "$1" != "" ]
 do
     case $1 in
-        --fasta_dir    )
+        --fasta_dir     )
             shift
             fasta_dir=$(realpath $1)
             ;;
-        --no_masking   )
+        --search_method )
+            shift
+            search_method=$1
+            ;;
+        --no_masking    )
             no_masking="TRUE"
             ;;
-        --no_eff_len   )
+        --no_eff_len    )
             no_eff_len="TRUE"
             ;;
-		--short_frac   )
+		--short_frac    )
             shift
             short_frac=$1
             ;;
-		--long_frac    )
+		--long_frac     )
             shift
             long_frac=$1
             ;;
-		--threads      )
+		--threads       )
             shift
             threads=$1
             ;;
-        --control_file )
+        --control_file  )
             shift
             control_file=$1
             ;;
-		--help )
+		--help          )
             usage
             exit 0
             ;;
@@ -181,16 +186,17 @@ then                                               #
 fi                                                 #
 ####################################################
 
-#####################################################################
-cur_date=$(date +%h%d)                                              #
-cur_dir=$(pwd)                                                      #
-prep_date=$(date +%y-%m-%d)                                         #
-log_file="OrthoPrep-${prep_date}.log"                               #
-res_dir="Results_${cur_date}"                                       #
-work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory"     #
-prep_dir="${cur_dir}/OrthoPrep-${prep_date}"                        #
-tmp_dir="${prep_dir}/tmp"
-#####################################################################
+#################################################################
+cur_date=$(date +%h%d)                                          #
+cur_dir=$(pwd)                                                  #
+prep_date=$(date +%y-%m-%d)                                     #
+log_file="OrthoPrep-${prep_date}.log"                           #
+res_dir="Results_${cur_date}"                                   #
+work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory" #
+prep_dir="${cur_dir}/OrthoPrep-${prep_date}"                    #
+tmp_dir="${prep_dir}/tmp"                                       #
+bckp_dir="${prep_dir}/bckp"                                     #
+#################################################################
 
 ############################################################################################################
 if [ "${run_mode}" == "custom" ]                                                                           #
@@ -229,21 +235,16 @@ fi                                                                              
 ##############################################################################################
 
 
-#######################################################################################################
-echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                       #
-mkdir -p "${prep_dir}"                                                                                #
-#command_list=$(orthofinder.py -S diamond_ulow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-3
-command_list=$(orthofinder.py -S diamond_vlow -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)   # <- 1e-6
-#command_list=$(orthofinder.py -S diamond_low  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-12
-#command_list=$(orthofinder.py -S diamond_med  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-15
-#command_list=$(orthofinder.py -S diamond_hard -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-18
-#command_list=$(orthofinder.py -S diamond_def  -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)  # <- 1e-3 no masking
-command_list=$(echo "${command_list}" | sed -e "s|${work_dir}|${prep_dir}|g")                         #
+#########################################################################################################
+echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                         #
+mkdir -p "${prep_dir}"                                                                                  #
+command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) #
+command_list=$(echo "${command_list}" | sed -e "s|${work_dir}|${prep_dir}|g")                           #
 cp  "${work_dir}"/Species*.fa \
     "${work_dir}"/SequenceIDs.txt \
     "${work_dir}"/SpeciesIDs.txt \
-    "${work_dir}"/diamond_vlowDBSpecies*.dmnd \
-    "${prep_dir}" #
+    "${work_dir}"/${search_method}DBSpecies*.dmnd \
+    "${prep_dir}"
 #######################################################################################################
 
 
@@ -253,10 +254,11 @@ fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                           #
 if [ "${species_count}" -eq "${fasta_count}" ]                              #
 then                                                                        #
     echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}        #
-    if [ "${no_masking}" == "FALSE" ]                                       #
+    if [ "${no_masking}" == "TRUE" ]                                        #
     then                                                                    #
-        mkdir ${prep_dir}/bckp                                              #
-        cp ${prep_dir}/Species*.fa ${prep_dir}/bckp                         #
+        mkdir ${bckp_dir}                                                   #
+        cp ${prep_dir}/Species*.fa ${bckp_dir}                              #
+        cp ${prep_dir}/${search_method}DBSpecies*.dmnd ${bckp_dir}          #
     fi                                                                      #
     op_get_eff_len.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len}    #
     if [ ! $? -eq 0 ]                                                       #
@@ -265,12 +267,25 @@ then                                                                        #
         echo "Aborting" | tee -a ${log_file}                                #
         exit 0                                                              #
     fi                                                                      #
+    if [ "${no_masking}" == "FALSE" ]                                       #
+    then                                                                    #
+        rm ${prep_dir}/${search_method}DBSpecies*.dmnd                      #
+        for base_name in $(ls ${prep_dir} | grep fa$ | cut -d\. -f1)        #
+        do
+            diamond \
+                makedb \
+                --threads ${threads} \
+                --db ${prep_dir}/${search_method}DB${base_name}.dmnd \
+                --in ${prep_dir}/${search_method}DB${base_name}.fa          #
+        done                                                                #
+    fi                                                                      #
 fi                                                                          #
 #############################################################################
 
 ##########################################################################################
 num_commands=$(echo "${command_list}" | wc -l)                                           #
 echo "Step 3. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file} #
+echo "${command_list}" > ${prep_dir}/diamond_command_list.txt                            #
 echo "${command_list}" | parallel -j ${threads}                                          #
 ##########################################################################################
 
@@ -294,7 +309,7 @@ do
             long_frac=$(awk  -v query="${q_fasta}" -v subject="${s_fasta}" '{if(($1==query) && ($2==subject)){print $4}}' ${control_file})
         fi
         op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}
-        mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}/bckp
+        mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${bckp_dir}
         mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
     done
 done
