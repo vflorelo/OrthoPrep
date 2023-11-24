@@ -96,204 +96,155 @@ do
 	esac
 	shift
 done
-########################################################
-if [ ! -d "${fasta_dir}" ] || [ -z "${fasta_dir}" ]    #
-then                                                   #
-    echo "Missing fasta directory. Exiting"            #
-    exit 0                                             #
-fi                                                     #
-########################################################
-
-#####################################################################
-if [ -z "${control_file}" ]                                         #
-then                                                                #
-    echo "No control file specified, proceeding in normal mode"     #
-elif [ -f "${control_file}" ]                                       #
-then                                                                #
-    if [ ! -z "${short_frac}" ] || [ ! -z "${long_frac}" ]          #
-    then                                                            #
-        echo "Incompatible options. Exiting"                        #
-        exit 0                                                      #
-    else                                                            #
-        echo "Using ${control_file} for specific comparisons"       #
-        run_mode="custom"                                           #
-    fi                                                              #
-elif [ ! -f "${control_file}" ]                                     #
-then                                                                #
-    echo "Control file ${control_file} missing. Exiting"            #
-    exit 0                                                          #
-fi                                                                  #
-#####################################################################
-
-
-#######################################################################################
-short_frac_test=$(echo "${short_frac}" | grep [0-9] | awk '{if($1>=0){print $1}}')    #
-if [ -z "${short_frac_test}" ] && [ "${run_mode}" == "normal" ]                       #
-then                                                                                  #
-    echo "Invalid short fraction value. Exiting"                                      #
-    exit 0                                                                            #
-fi                                                                                    #
-#######################################################################################
-
-##############################################################################################
-long_frac_test=$(echo "${long_frac}" | grep [0-9] | awk '{if($1>=0 && $1<=1){print $1}}')    #
-if [ -z "${short_frac_test}" ] && [ "${run_mode}" == "normal" ]                              #
-then                                                                                         #
-    echo "Invalid long fraction value. Exiting"                                              #
-    exit 0                                                                                   #
-fi                                                                                           #
-##############################################################################################
-
-#############################################################################################################
-if [ -z "${threads}" ]                                                                                      #
-then                                                                                                        #
-    threads=${num_proc}                                                                                     #
-else                                                                                                        #
-    num_proc=$(nproc)                                                                                       #
-    threads_test=$(echo -e "${threads}\t${num_proc}" | awk '{if((int($1)==$1) && ($1<=$2)){print $1}}')     #
-    if [ -z "${threads_test}" ]                                                                             #
-    then                                                                                                    #
-        echo "Invalid threads value. Exiting"                                                               #
-        exit                                                                                                #
-    fi                                                                                                      #
-fi                                                                                                          #
-#############################################################################################################
-
-#####################################################
-of_dep_test=$(which orthofinder.py 2> /dev/null)    #
-if [ $? -gt 0 ] || [ -z "${of_dep_test}" ]          #
-then                                                #
-    echo "OrthoFinder not installed. Exiting"       #
-    exit 0                                          #
-fi                                                  #
-#####################################################
-
-#################################################
-dmn_dep_test=$(which diamond 2> /dev/null)      #
-if [ $? -gt 0 ] || [ -z "${dmn_dep_test}" ]     #
-then                                            #
-    echo "Diamond not installed. Exiting"       #
-    exit 0                                      #
-fi                                              #
-#################################################
-
-####################################################
-par_dep_test=$(which parallel 2> /dev/null)        #
-if [ $? -gt 0 ] || [ -z "${par_dep_test}" ]        #
-then                                               #
-    echo "GNU Parallel not installed. Exiting"     #
-    exit 0                                         #
-fi                                                 #
-####################################################
-
-#################################################################
-cur_date=$(date +%h%d)                                          #
-cur_dir=$(pwd)                                                  #
-prep_date=$(date +%y-%m-%d)                                     #
-log_file="OrthoPrep-${prep_date}.log"                           #
-res_dir="Results_${cur_date}"                                   #
-work_dir="${fasta_dir}/OrthoFinder/${res_dir}/WorkingDirectory" #
-prep_dir="${cur_dir}/OrthoPrep-${prep_date}"                    #
-tmp_dir="${prep_dir}/tmp"                                       #
-bckp_dir="${prep_dir}/bckp"                                     #
-#################################################################
-
-############################################################################################################
-if [ "${run_mode}" == "custom" ]                                                                           #
-then                                                                                                       #
-    fasta_file_list=$(cut -f1,2 "${control_file}" | perl -pe 's/\t/\n/' | sort -V | uniq | grep -v ^$)     #
-    for fasta_file in ${fasta_file_list}                                                                   #
-    do                                                                                                     #
-        file_present=$(check_files ${fasta_dir} ${fasta_file})                                            #
-        if [ "${file_present}" == "fail" ]                                                                 #
-        then                                                                                               #
-            echo "Missing file ${fasta_file}. Exiting"                                                     #
-            exit 0                                                                                         #
-        fi                                                                                                 #
-    done                                                                                                   #
-fi                                                                                                         #
-############################################################################################################
-
-##############################################################################################
-if [ -d "${fasta_dir}/OrthoFinder" ]                                                         #
-then                                                                                         #
-    echo "We're about to remove ${fasta_dir}/OrthoFinder that may contain previous runs"     #
-    echo "Proceed? [N]/Y"                                                                    #
-    read rm_check                                                                            #
-    if [ "${rm_check}" == "Y" ] || [ "${rm_check}" == "y" ]                                  #
-    then                                                                                     #
-        rm -rf ${fasta_dir}/OrthoFinder                                                      #
-    elif [ "${rm_check}" == "N" ] || [ "${rm_check}" == "n" ] || [ -z "${rm_check}" ]        #
-    then                                                                                     #
-        echo "Directory not removed, aborting"                                               #
-        exit 0                                                                               #
-    else                                                                                     #
-        echo "Invalid option, aborting"                                                      #
-        exit 0                                                                               #
-    fi                                                                                       #
-fi                                                                                           #
-##############################################################################################
-
-
-#########################################################################################################
-echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}                         #
-mkdir -p "${prep_dir}"                                                                                  #
-command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} | grep -w ^diamond | grep blastp) #
-command_list=$(echo "${command_list}" | sed -e "s|${work_dir}|${prep_dir}|g")                           #
-cp  "${work_dir}"/Species*.fa \
-    "${work_dir}"/SequenceIDs.txt \
-    "${work_dir}"/SpeciesIDs.txt \
-    "${work_dir}"/${search_method}DBSpecies*.dmnd \
+if [ ! -d "${fasta_dir}" ] || [ -z "${fasta_dir}" ]
+then
+    echo "Missing fasta directory. Exiting"
+    exit 0
+fi
+if [ -z "${control_file}" ]
+then
+    echo "No control file specified, proceeding in normal mode"
+elif [ -f "${control_file}" ]
+then
+    if [ ! -z "${short_frac}" ] || [ ! -z "${long_frac}" ]
+    then
+        echo "Incompatible options. Exiting"
+        exit 0
+    else
+        echo "Using ${control_file} for specific comparisons"
+        run_mode="custom"
+    fi
+elif [ ! -f "${control_file}" ]
+then
+    echo "Control file ${control_file} missing. Exiting"
+    exit 0
+fi
+short_frac_test=$(echo "${short_frac}" | grep [0-9] | awk '{if($1>=0){print $1}}')
+if [ -z "${short_frac_test}" ] && [ "${run_mode}" == "normal" ]
+then
+    echo "Invalid short fraction value. Exiting"
+    exit 0
+fi
+long_frac_test=$(echo "${long_frac}" | grep [0-9] | awk '{if($1>=0 && $1<=1){print $1}}')
+if [ -z "${short_frac_test}" ] && [ "${run_mode}" == "normal" ]
+then
+    echo "Invalid long fraction value. Exiting"
+    exit 0
+fi
+if [ -z "${threads}" ]
+then
+    threads=${num_proc}
+else
+    num_proc=$(nproc)
+    threads_test=$(echo -e "${threads}\t${num_proc}" | awk '{if((int($1)==$1) && ($1<=$2)){print $1}}')
+    if [ -z "${threads_test}" ]
+    then
+        echo "Invalid threads value. Exiting"
+        exit
+    fi
+fi
+of_dep_test=$(which orthofinder.py 2> /dev/null)
+if [ $? -gt 0 ] || [ -z "${of_dep_test}" ]
+then
+    echo "OrthoFinder not installed. Exiting"
+    exit 0
+fi
+dmn_dep_test=$(which diamond 2> /dev/null)
+if [ $? -gt 0 ] || [ -z "${dmn_dep_test}" ]
+then
+    echo "Diamond not installed. Exiting"
+    exit 0
+fi
+par_dep_test=$(which parallel 2> /dev/null)
+if [ $? -gt 0 ] || [ -z "${par_dep_test}" ]
+then
+    echo "GNU Parallel not installed. Exiting"
+    exit 0
+fi
+cur_date=$(date +%h%d)
+cur_dir=$(pwd)
+prep_date=$(date +%y-%m-%d)
+log_file="OrthoPrep-${prep_date}.log"
+of_dir="${fasta_dir}/OrthoFinder/Results_${cur_date}/WorkingDirectory"
+prep_dir="${cur_dir}/OrthoPrep-${prep_date}"
+tmp_dir="${prep_dir}/tmp"
+bckp_dir="${prep_dir}/bckp"
+if [ "${run_mode}" == "custom" ]
+then
+    fasta_file_list=$(cut -f1,2 "${control_file}" | perl -pe 's/\t/\n/' | sort -V | uniq | grep -v ^$)
+    for fasta_file in ${fasta_file_list}
+    do
+        file_present=$(check_files ${fasta_dir} ${fasta_file})
+        if [ "${file_present}" == "fail" ]
+        then
+            echo "Missing file ${fasta_file}. Exiting"
+            exit 0
+        fi
+    done
+fi
+if [ -d "${fasta_dir}/OrthoFinder" ]
+then
+    echo "We're about to remove ${fasta_dir}/OrthoFinder that may contain previous runs"
+    echo "Proceed? [N]/Y"
+    read rm_check
+    if [ "${rm_check}" == "Y" ] || [ "${rm_check}" == "y" ]
+    then
+        rm -rf ${fasta_dir}/OrthoFinder
+    elif [ "${rm_check}" == "N" ] || [ "${rm_check}" == "n" ] || [ -z "${rm_check}" ]
+    then
+        echo "Directory not removed, aborting"
+        exit 0
+    else
+        echo "Invalid option, aborting"
+        exit 0
+    fi
+fi
+echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}
+mkdir -p "${prep_dir}" "${tmp_dir}" "${bckp_dir}"
+command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)
+command_list=$(echo "${command_list}" | sed -e "s|${of_dir}|${prep_dir}|g")
+cp  "${of_dir}"/Species*.fa \
+    "${of_dir}"/SequenceIDs.txt \
+    "${of_dir}"/SpeciesIDs.txt \
+    "${of_dir}"/${search_method}DBSpecies*.dmnd \
     "${prep_dir}"
-#######################################################################################################
-
-
-#############################################################################
-species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)                   #
-fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )                           #
-if [ "${species_count}" -eq "${fasta_count}" ]                              #
-then                                                                        #
-    echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}        #
-    if [ "${no_masking}" == "TRUE" ]                                        #
-    then                                                                    #
-        mkdir ${bckp_dir}                                                   #
-        cp ${prep_dir}/Species*.fa ${bckp_dir}                              #
-        cp ${prep_dir}/${search_method}DBSpecies*.dmnd ${bckp_dir}          #
-    fi                                                                      #
-    op_get_eff_len.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len}    #
-    if [ ! $? -eq 0 ]                                                       #
-    then                                                                    #
-        echo "Error produced extracting LCRs" | tee -a ${log_file}          #
-        echo "Aborting" | tee -a ${log_file}                                #
-        exit 0                                                              #
-    fi                                                                      #
-    if [ "${no_masking}" == "FALSE" ]                                       #
-    then                                                                    #
-        rm ${prep_dir}/${search_method}DBSpecies*.dmnd                      #
-        for base_name in $(ls ${prep_dir} | grep fa$ | cut -d\. -f1)        #
+species_count=$(cat "${prep_dir}/SpeciesIDs.txt" | wc -l)
+fasta_count=$(ls "${prep_dir}" | grep -c ".fa"$ )
+if [ "${species_count}" -eq "${fasta_count}" ]
+then
+    echo "Step 2. Preprocessing sequence files" | tee -a ${log_file}
+    if [ "${no_masking}" == "TRUE" ]
+    then
+        cp ${prep_dir}/Species*.fa ${bckp_dir}
+        cp ${prep_dir}/${search_method}DBSpecies*.dmnd ${bckp_dir}
+    fi
+    op_get_eff_len.sh ${prep_dir} ${threads} ${no_masking} ${no_eff_len}
+    if [ ! $? -eq 0 ]
+    then
+        echo "Error produced extracting LCRs" | tee -a ${log_file}
+        echo "Aborting" | tee -a ${log_file}
+        exit 0
+    fi
+    if [ "${no_masking}" == "FALSE" ]
+    then
+        rm ${prep_dir}/${search_method}DBSpecies*.dmnd
+        for base_name in $(ls ${prep_dir} | grep fa$ | cut -d\. -f1)
         do
             diamond \
                 makedb \
                 --threads ${threads} \
                 --db ${prep_dir}/${search_method}DB${base_name}.dmnd \
-                --in ${prep_dir}/${search_method}DB${base_name}.fa          #
-        done                                                                #
-    fi                                                                      #
-fi                                                                          #
-#############################################################################
-
-##########################################################################################
-num_commands=$(echo "${command_list}" | wc -l)                                           #
-echo "Step 3. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file} #
-echo "${command_list}" > ${prep_dir}/diamond_command_list.txt                            #
-echo "${command_list}" | parallel -j ${threads}                                          #
-##########################################################################################
-
-##########################################################################################
+                --in ${prep_dir}/${base_name}.fa
+        done
+    fi
+fi
+num_commands=$(echo "${command_list}" | wc -l)
+echo "Step 3. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file}
+echo "${command_list}" > ${prep_dir}/diamond_command_list.txt
+echo "${command_list}" | parallel -j ${threads}
 echo "Step 4. Filtering BLAST results based on size differences" | tee -a ${log_file}
 species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
 eff_len_file="Sequence_eff_len.tsv"
-mkdir "${tmp_dir}"
 for query in ${species_num}
 do
     for subject in ${species_num}
