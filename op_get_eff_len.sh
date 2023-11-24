@@ -37,7 +37,6 @@ then
 elif [ "${no_eff_len}" == "FALSE" ]
 then
     species_num=$(cat ${species_list_file} | dos2unix | cut -d\: -f1)
-    mkdir -p "${lcr_dir}"
     cd ${lcr_dir}
     for num in ${species_num}
     do
@@ -62,6 +61,7 @@ then
             maskFastaFromBed -fi Species${num}.fa -bed Species${num}.lcr.bed -fo ${prep_dir}/Species${num}.fa -mc X
         fi
         rm Species${num}.seq.tsv Species${num}.len.tsv
+        perl -pi -e "s/^/${num}\t/" Species${num}.lcr.tsv
     done
-    cat Species*.lcr.tsv | awk 'BEGIN{FS="\t"}{print $1 "@" $1 FS $2}' | perl -pe 's/_.*\@/\t/' > "${sequence_eff_len_file}"
+    cat Species*.lcr.tsv > "${sequence_eff_len_file}"
 fi

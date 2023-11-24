@@ -167,8 +167,9 @@ prep_date=$(date +%y-%m-%d)
 log_file="OrthoPrep-${prep_date}.log"
 of_dir="${fasta_dir}/OrthoFinder/Results_${cur_date}/WorkingDirectory"
 prep_dir="${cur_dir}/OrthoPrep-${prep_date}"
-tmp_dir="${prep_dir}/tmp"
 bckp_dir="${prep_dir}/bckp"
+lcr_dir="${prep_dir}/LCR"
+tmp_dir="${prep_dir}/tmp"
 if [ "${run_mode}" == "custom" ]
 then
     fasta_file_list=$(cut -f1,2 "${control_file}" | perl -pe 's/\t/\n/' | sort -V | uniq | grep -v ^$)
@@ -200,7 +201,7 @@ then
     fi
 fi
 echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}
-mkdir -p "${prep_dir}" "${tmp_dir}" "${bckp_dir}"
+mkdir -p "${prep_dir}" "${tmp_dir}" "${bckp_dir}" "${lcr_dir}"
 command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)
 command_list=$(echo "${command_list}" | sed -e "s|${of_dir}|${prep_dir}|g")
 cp  "${of_dir}"/Species*.fa \
