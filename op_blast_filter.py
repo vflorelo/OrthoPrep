@@ -28,12 +28,15 @@ def filter_by_len(qlen,slen,sf,lf):
     else:
         low_bound = int(float(slen*sf))
         up_bound  = int(float(qlen*lf))
-    low_frac = abs(qlen - slen) / low_bound
-    up_frac  = abs(qlen - slen) / up_bound
-    if ((low_frac   <= 1 ) and (up_frac <= 1 )):
-        pair_cat = "hq"
-    else:
+    if(low_bound == 0):
         pair_cat = "lq"
+    else:
+        low_frac = abs(qlen - slen) / low_bound
+        up_frac  = abs(qlen - slen) / up_bound
+        if ((low_frac   <= 1 ) and (up_frac <= 1 )):
+            pair_cat = "hq"
+        else:
+            pair_cat = "lq"
     return pair_cat
 q_len_df = len_df.copy()
 q_len_df = q_len_df[q_len_df["species"]==query]
