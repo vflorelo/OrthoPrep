@@ -16,8 +16,9 @@ function usage(){
     echo "Options:"
     echo "  --fasta_dir     -> Directory containing protein sequences in fasta format (mandatory)"
     echo "  --search_method -> Sequence similarity method to use in orthofinder (mandatory)"
-    echo "  --no_eff_len    -> Turns off calculation of LCR based effective length, use at your own risk"
-    echo "  --no_masking    -> Turns off masking of LCRs, use at your own risk"
+    echo "  --blast_filter  -> Filters BLAST results based on total- or effective-length [TRUE]/FALSE"
+    echo "  --eff_len       -> Calculates LCR based effective length [TRUE]/FALSE"
+    echo "  --masking       -> Hardmasking of LCRs for BLAST searches [TRUE]/FALSE"
     echo "  --short_frac    -> Maximum size difference fraction to be accepted (using smallest protein in pair as reference)"
     echo "  --long_frac     -> Maximum size difference fraction to be accepted (using longest protein in pair as reference)"
     echo "  --threads       -> Number of CPU threads to use"
@@ -33,7 +34,7 @@ function usage(){
     echo "Examples:"
     echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --short_frac 0.25 --long_frac 0.2 --threads 16"
     echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --control_file control.tsv --threads 16 "
-    echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --control_file control.tsv --no_masking --threads 16"
-    echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --control_file control.tsv --no_eff_len --threads 16"
+    echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --control_file control.tsv --masking FALSE --threads 16"
+    echo "  OrthoPrep.sh --fasta_dir /path/to/my/sequences/folder --control_file control.tsv --eff_len FALSE --threads 16"
 	}
 export -f usage
