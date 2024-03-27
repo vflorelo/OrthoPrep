@@ -215,10 +215,10 @@ fi
 echo -e "Number of threads\t->\t${threads}"         | tee -a ${log_file}
 echo "#############################################################"
 echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}
-command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} | grep -w ^diamond | grep blastp)
+command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} 2>> ${log_dir}/diamond_commands.err  | grep -w ^diamond | grep blastp )
 command_list=$(echo "${command_list}" | sed -e "s|${of_dir}|${prep_dir}|g")
+echo "${command_list}" > ${log_dir}/diamond_commands.txt
 num_commands=$(echo "${command_list}" | wc -l)
-echo "${command_list}" > ${log_dir}/diamond.log 2> ${log_dir}/diamond.err
 cp  "${of_dir}"/Species*.fa \
     "${of_dir}"/SequenceIDs.txt \
     "${of_dir}"/SpeciesIDs.txt \
