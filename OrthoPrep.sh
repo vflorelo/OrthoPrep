@@ -169,6 +169,16 @@ then
     echo "Exiting"
     exit 0
 fi
+
+config_file=$(find $(dirname $(which orthofinder.py )) | grep config)
+command_base=$(cat ${config_file} | jq .${search_method}.search_cmd)
+if [ -z "${command_base}" ] || [ "${command_base}" == "null" ]
+then
+    echo "Invalid search command, Exiting"
+    exit
+fi
+
+
 cur_date=$(date +%h%d)
 cur_dir=$(pwd)
 uuid=$(uuidgen | cut -d- -f5 )
