@@ -175,13 +175,14 @@ log_dir="${prep_dir}/logs"
 bckp_dir="${prep_dir}/resume_bckp"
 log_file="OrthoPrep-${prep_date}.log"
 log_file="${log_dir}/${log_file}"
-mkdir -p "${prep_dir}" "${tmp_dir}" "${log_dir}"
+mkdir -p "${prep_dir}" "${tmp_dir}" "${log_dir}" "${bckp_dir}"
 
 if [ ! -f "${prep_dir}/SpeciesIDs.txt" ] || [ ! -d "${prep_dir}/masked_seqs" ] || [ ! -f "${prep_dir}/Sequence_eff_len.tsv" ]
 then
     echo "Missing required files. Exiting" | tee -a ${log_file}
     exit
 else
+    dos2unix ${prep_dir}/SpeciesIDs.txt
     file_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt | sed -e "s|^|${prep_dir}/masked_seqs/Species|;s|$|.fa|")
     file_test=$(file "${file_list}" | grep -wc "No such file or directory" )
     if [ "${file_test}" -gt 0 ]
@@ -210,7 +211,6 @@ fi
 echo -e "Number of threads\t->\t${threads}"         | tee -a ${log_file}
 echo "#############################################################"
 species_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt)
-species_count=$(echo "${species_list}" | wc -l)
 db_cmd_list=""
 search_cmd_list=""
 for query in ${species_list}
@@ -229,7 +229,8 @@ do
 done
 
 echo "Step 1. Rebuilding diamond databases" | tee -a ${log_file}
-db_cmd_list=$(echo     "${db_cmd_list}"     | sort -V | uniq | grep -v ^$ | grep .)
+db_cmd_list=$(echo "${db_cmd_list}" | sort -V | uniq | grep -v ^$ | grep .)
+echo "${db_cmd_list}" > "${log_dir}/db_cmd_list.txt"
 echo "${db_cmd_list}" | parallel -j ${threads} > ${log_dir}/makedb_commands.log 2> ${log_dir}/makedb_commands.err
 if [ $? -gt 0 ]
 then
@@ -238,8 +239,8 @@ then
     mv ${bckp_dir}/*.dmnd ${prep_dir}
     exit
 fi
-
 search_cmd_list=$(echo "${search_cmd_list}" | sort -V | uniq | grep -v ^$ | grep .)
+echo "${search_cmd_list}" > "${log_dir}/search_cmd_list.txt"
 num_commands=$(echo "${search_cmd_list}" | wc -l)
 echo "Step 2. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file}
 mv "${prep_dir}"/blast*.txt.gz "${bckp_dir}"
@@ -255,7 +256,7 @@ fi
 if [ "${blast_filter}" == "TRUE" ] || [ "${blast_filter}" == "true" ]
 then
     echo "Step 3. Filtering BLAST results based on size differences" | tee -a ${log_file}
-    species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
+    species_num=$(cat ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
     eff_len_file="Sequence_eff_len.tsv"
     for query in ${species_num}
     do
@@ -288,14 +289,8 @@ then
     else
         echo ""  | tee -a ${log_file}
         echo "        Finished filtering BLAST results" | tee -a ${log_file}
-        echo "        Files in the ${prep_dir} directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
+        echo "        Files in the ${prep_dir} directory were obtained by filtering the BLAST results" | tee -a ${log_file}
     fi
-fi
-if [ "${masking}" == "TRUE" ]
-then
-    echo "        Restoring masked sequences" | tee -a ${log_file}
-    mv ${prep_dir}/Species*.fa ${mask_dir}
-    cp ${lcr_dir}/Species*.fa ${prep_dir}
 fi
 echo "        Removing temporary files" | tee -a ${log_file}
 rm -rf ${tmp_dir}
