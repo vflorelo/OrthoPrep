@@ -180,6 +180,7 @@ do
     for subject in ${species_list}
     do
         cur_search_cmd=$(echo "${search_command}" | sed -e "s|DATABASE|${prep_dir}/${search_method}DBSpecies${query}.dmnd|;s|INPUT|${prep_dir}/masked_seqs/Species${subject}.fa|;s|OUTPUT|${prep_dir}/Blast${subject}_${query}.txt|")
+        echo "${cur_search_cmd}"
         search_cmd_list=$(echo -e "${search_cmd_list}\n${cur_search_cmd}")
     done
 done
