@@ -112,6 +112,7 @@ then
 fi
 config_file=$(find $(dirname $(which orthofinder.py )) | grep config)
 makedb_command=$(cat ${config_file} | jq .${search_method}.db_cmd | sed -e 's/"//g')
+echo "${makedb_command}"
 if [ -z "${makedb_command}" ] || [ "${makedb_command}" == "null" ]
 then
     echo "Invalid database command, Exiting"
