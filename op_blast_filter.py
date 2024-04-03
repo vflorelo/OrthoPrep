@@ -42,12 +42,18 @@ q_len_df = len_df.copy()
 q_len_df = q_len_df[q_len_df["species"]==query]
 q_len_df = q_len_df.rename(columns={"seqid":"qseqid","len":"qlen"})
 q_len_df = q_len_df.drop(columns=['species'],axis=1)
+print(q_len_df)
 s_len_df = len_df.copy()
 s_len_df = s_len_df[s_len_df["species"]==subject]
 s_len_df = s_len_df.rename(columns={"seqid":"sseqid","len":"slen"})
 s_len_df = s_len_df.drop(columns=['species'],axis=1)
+print(s_len_df)
+print(blast_df)
 blast_df = pd.merge(blast_df,q_len_df,on="qseqid")
+print(blast_df)
 blast_df = pd.merge(blast_df,s_len_df,on="sseqid")
+print(blast_df)
+
 blast_df["pair_cat"] = blast_df.apply(lambda x : filter_by_len(x["qlen"],x["slen"],short_frac,long_frac), axis=1)
 op_blast_df = blast_df.copy()
 op_blast_df = op_blast_df[op_blast_df["pair_cat"]=="hq"]

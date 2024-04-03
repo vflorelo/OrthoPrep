@@ -1,8 +1,6 @@
 #!/bin/bash
-usage="$(dirname $0)/usage.sh"
+usage="$(dirname $0)/resume_usage.sh"
 source ${usage}
-eff_len="TRUE"
-blast_filter="TRUE"
 run_mode="normal"
 while [ "$1" != "" ]
 do
@@ -14,14 +12,6 @@ do
         --search_method )
             shift
             search_method=$1
-            ;;
-        --blast_filter )
-            shift
-            blast_filter=$1
-            ;;
-        --eff_len    )
-            shift
-            eff_len=$1
             ;;
 		--short_frac    )
             shift
@@ -56,81 +46,50 @@ then
     echo "Missing search method. Exiting"
     exit 0
 fi
-if [ ! -z "${eff_len}" ]
+
+
+if [ -z "${control_file}" ]
 then
-    if [ "${eff_len}" != "TRUE" ] && [ "${eff_len}" != "true" ] && [ "${eff_len}" != "FALSE" ] && [ "${eff_len}" != "false" ]
+    echo "No control file specified, proceeding in normal mode"
+    run_mode="normal"
+    if [ -z "${short_frac}" ] || [ -z "${long_frac}" ]
     then
-        echo "Invalid --eff_len value. Exiting"
+        echo "Missing fraction values. Exiting"
         exit 0
+    else
+        frac_test=$(echo -e "${short_frac}\t${long_frac}" | awk 'BEGIN{FS="\t"}{if($1>=0 && $1<=1 && $2>=0 && $2<=1){print "pass"}else{print "fail"}}')
+        if [ "${frac_test}" == "fail" ]
+        then
+            echo "Invalid fraction values. Exiting"
+            exit 0
+        fi
     fi
-else
-    echo "Empty --eff_len value, proceeding with TRUE"
-    eff_len="TRUE"
+elif [ -f "${control_file}" ]
+then
+    if [ ! -z "${short_frac}" ] || [ ! -z "${long_frac}" ]
+    then
+        echo "Incompatible options. Exiting"
+        exit 0
+    else
+        echo "Using ${control_file} for specific comparisons"
+        run_mode="custom"
+        frac_list=$(cut -f3,4 "${control_file}")
+        frac_count=$(echo "${frac_list}" | awk 'BEGIN{FS="\t"}{if($1>=0 && $1<=1 && $2>=0 && $2<=1){print $0 FS NR}}' | wc -l)
+        comp_num=$(cat "${control_file}" | wc -l)
+        if [ ! "${comp_num}" -eq "${frac_count}" ]
+        then
+            echo "Invalid fraction values. Exiting"
+            exit 0
+        fi
+    fi
+elif [ ! -f "${control_file}" ]
+then
+    echo "Control file ${control_file} missing. Exiting"
+    exit 0
 fi
 
-if [ ! -z "${blast_filter}" ]
-then
-    if [ "${blast_filter}" != "TRUE" ] && [ "${blast_filter}" != "true" ] && [ "${blast_filter}" != "FALSE" ] && [ "${blast_filter}" != "false" ]
-    then
-        echo "Invalid --blast_filter value. Exiting"
-        exit 0
-    fi
-else
-    echo "Empty --blast_filter value, proceeding with TRUE"
-    blast_filter="TRUE"
-fi
 
-if [ "${blast_filter}" == "TRUE" ] || [ "${blast_filter}" == "true" ]
-then
-    if [ -z "${control_file}" ]
-    then
-        echo "No control file specified, proceeding in normal mode"
-        run_mode="normal"
-        if [ -z "${short_frac}" ] || [ -z "${long_frac}" ]
-        then
-            echo "Missing fraction values. Exiting"
-            exit 0
-        else
-            frac_test=$(echo -e "${short_frac}\t${long_frac}" | awk 'BEGIN{FS="\t"}{if($1>=0 && $1<=1 && $2>=0 && $2<=1){print "pass"}else{print "fail"}}')
-            if [ "${frac_test}" == "fail" ]
-            then
-                echo "Invalid fraction values. Exiting"
-                exit 0
-            fi
-        fi
-    elif [ -f "${control_file}" ]
-    then
-        if [ ! -z "${short_frac}" ] || [ ! -z "${long_frac}" ]
-        then
-            echo "Incompatible options. Exiting"
-            exit 0
-        else
-            echo "Using ${control_file} for specific comparisons"
-            run_mode="custom"
-            fasta_file_list=$(cut -f1,2 "${control_file}" | perl -pe 's/\t/\n/' | sort -V | uniq | grep -v ^$)
-            for fasta_file in ${fasta_file_list}
-            do
-                if [ ! -s "${fasta_dir}/${fasta_file}" ]
-                then
-                    echo "Missing file ${fasta_file}. Exiting"
-                    exit 0
-                fi
-            done
-            frac_list=$(cut -f3,4 "${control_file}")
-            frac_count=$(echo "${frac_list}" | awk 'BEGIN{FS="\t"}{if($1>=0 && $1<=1 && $2>=0 && $2<=1){print $0 FS NR}}' | wc -l)
-            comp_num=$(cat "${control_file}" | wc -l)
-            if [ ! "${comp_num}" -eq "${frac_count}" ]
-            then
-                echo "Invalid fraction values. Exiting"
-                exit 0
-            fi
-        fi
-    elif [ ! -f "${control_file}" ]
-    then
-        echo "Control file ${control_file} missing. Exiting"
-        exit 0
-    fi
-fi
+
 num_proc=$(nproc)
 if [ -z "${threads}" ]
 then
@@ -152,14 +111,14 @@ then
     exit 0
 fi
 config_file=$(find $(dirname $(which orthofinder.py )) | grep config)
-makedb_command=$(cat ${config_file} | jq .${search_method}.db_cmd)
+makedb_command=$(cat ${config_file} | jq .${search_method}.db_cmd | sed -e 's/"//g')
 if [ -z "${makedb_command}" ] || [ "${makedb_command}" == "null" ]
 then
     echo "Invalid database command, Exiting"
     exit
 fi
 
-search_command=$(cat ${config_file} | jq .${search_method}.search_cmd)
+search_command=$(cat ${config_file} | jq .${search_method}.search_cmd | sed -e 's/"//g')
 if [ -z "${search_command}" ] || [ "${search_command}" == "null" ]
 then
     echo "Invalid search command, Exiting" 
@@ -184,29 +143,25 @@ then
 else
     dos2unix ${prep_dir}/SpeciesIDs.txt
     file_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt | sed -e "s|^|${prep_dir}/masked_seqs/Species|;s|$|.fa|")
-    file_test=$(file "${file_list}" | grep -wc "No such file or directory" )
+    file_test=$(file $(echo "${file_list}") | grep -wc "No such file or directory" )
     if [ "${file_test}" -gt 0 ]
     then
         echo "Missing required files. Exiting" | tee -a ${log_file}
+        out_test=$(file $(echo "${file_list}"))
+        echo "${out_test}"
         exit
     fi
 fi
-
 echo "Running resume_OrthoPrep with the following options" | tee -a ${log_file}
 echo -e "OrthoPrep directory\t->\t${prep_dir}"      | tee -a ${log_file}
 echo -e "BLAST search method\t->\t${search_method}" | tee -a ${log_file}
-echo -e "BLAST results filtering\t->\t${blast_filter}"   | tee -a ${log_file}
-if [ "${blast_filter}" == "TRUE" ] || [ "${blast_filter}" == "true" ]
+if [ "${run_mode}" == "normal" ]
 then
-    echo -e "Effective length\t->\t${eff_len}"          | tee -a ${log_file}
-    if [ "${run_mode}" == "normal" ]
-    then
-        echo -e "Shortest seq. fraction\t->\t${short_frac}" | tee -a ${log_file}
-        echo -e "Longest seq. fraction\t->\t${long_frac}"   | tee -a ${log_file}
-    elif [ "${run_mode}" == "custom" ]
-    then
-        echo -e "Custom control file\t->\t${control_file}"  | tee -a ${log_file}
-    fi
+    echo -e "Shortest seq. fraction\t->\t${short_frac}" | tee -a ${log_file}
+    echo -e "Longest seq. fraction\t->\t${long_frac}"   | tee -a ${log_file}
+elif [ "${run_mode}" == "custom" ]
+then
+    echo -e "Custom control file\t->\t${control_file}"  | tee -a ${log_file}
 fi
 echo -e "Number of threads\t->\t${threads}"         | tee -a ${log_file}
 echo "#############################################################"
@@ -223,11 +178,10 @@ do
     db_cmd_list=$(echo -e "${db_cmd_list}\n${cur_makedb_cmd}")
     for subject in ${species_list}
     do
-        cur_search_cmd=$(echo "${search_command}" | sed -e "s|DATABASE|${prep_dir}/${search_method}DBSpecies${query}.dmnd|;s|INPUT|${prep_dir}/masked_seqs/Species${subject}.fa|;s|OUTPUT|${prep_dir}/Blast${query}_${subject}.txt|")
+        cur_search_cmd=$(echo "${search_command}" | sed -e "s|DATABASE|${prep_dir}/${search_method}DBSpecies${query}.dmnd|;s|INPUT|${prep_dir}/masked_seqs/Species${subject}.fa|;s|OUTPUT|${prep_dir}/Blast${subject}_${query}.txt|")
         search_cmd_list=$(echo -e "${search_cmd_list}\n${cur_search_cmd}")
     done
 done
-
 echo "Step 1. Rebuilding diamond databases" | tee -a ${log_file}
 db_cmd_list=$(echo "${db_cmd_list}" | sort -V | uniq | grep -v ^$ | grep .)
 echo "${db_cmd_list}" > "${log_dir}/db_cmd_list.txt"
@@ -235,7 +189,7 @@ echo "${db_cmd_list}" | parallel -j ${threads} > ${log_dir}/makedb_commands.log 
 if [ $? -gt 0 ]
 then
     echo "Error rebuilding diamond databases. Restoring files" | tee -a ${log_file}
-    rm ${prep_dir}*.dmnd
+    rm ${prep_dir}/*.dmnd
     mv ${bckp_dir}/*.dmnd ${prep_dir}
     exit
 fi
@@ -243,7 +197,7 @@ search_cmd_list=$(echo "${search_cmd_list}" | sort -V | uniq | grep -v ^$ | grep
 echo "${search_cmd_list}" > "${log_dir}/search_cmd_list.txt"
 num_commands=$(echo "${search_cmd_list}" | wc -l)
 echo "Step 2. Running ${num_commands} diamond commands in parallel" | tee -a ${log_file}
-mv "${prep_dir}"/blast*.txt.gz "${bckp_dir}"
+mv "${prep_dir}"/Blast*.txt.gz "${bckp_dir}"
 echo "${search_cmd_list}" | parallel -j ${threads} > ${log_dir}/search_commands.log 2> ${log_dir}/search_commands.err
 if [ $? -gt 0 ]
 then
@@ -253,44 +207,41 @@ then
     exit
 fi
 
-if [ "${blast_filter}" == "TRUE" ] || [ "${blast_filter}" == "true" ]
-then
-    echo "Step 3. Filtering BLAST results based on size differences" | tee -a ${log_file}
-    species_num=$(cat ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
-    eff_len_file="Sequence_eff_len.tsv"
-    for query in ${species_num}
+echo "Step 3. Filtering BLAST results based on size differences" | tee -a ${log_file}
+species_num=$(cat ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
+eff_len_file="Sequence_eff_len.tsv"
+for query in ${species_num}
+do
+    for subject in ${species_num}
     do
-        for subject in ${species_num}
-        do
-            if [ "${run_mode}" == "custom" ]
-            then
-                q_fasta=$(awk -v query="${query}"     'BEGIN{FS=": "}{if($1==query)  {print $2}}' ${prep_dir}/SpeciesIDs.txt)
-                s_fasta=$(awk -v subject="${subject}" 'BEGIN{FS=": "}{if($1==subject){print $2}}' ${prep_dir}/SpeciesIDs.txt)
-                short_frac=$(awk -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $3}}' ${control_file})
-                long_frac=$(awk  -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $4}}' ${control_file})
-            fi
-            echo "op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}" >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-            op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac} >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-            if [ $? -eq 0 ]
-            then
-                mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${bckp_dir}
-                mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
-            else
-                echo "Error filtering Blast${query}_${subject}.txt.gz."
-                echo "Check ${log_dir}/blast_filter.log and ${log_dir}/blast_filter.err"
-            fi
-        done
+        if [ "${run_mode}" == "custom" ]
+        then
+            q_fasta=$(awk -v query="${query}"     'BEGIN{FS=": "}{if($1==query)  {print $2}}' ${prep_dir}/SpeciesIDs.txt)
+            s_fasta=$(awk -v subject="${subject}" 'BEGIN{FS=": "}{if($1==subject){print $2}}' ${prep_dir}/SpeciesIDs.txt)
+            short_frac=$(awk -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $3}}' ${control_file})
+            long_frac=$(awk  -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $4}}' ${control_file})
+        fi
+        echo "op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}" >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
+        op_blast_filter.py       ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}  >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
+        if [ $? -eq 0 ]
+        then
+            mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${bckp_dir}
+            mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
+        else
+            echo "Error filtering Blast${query}_${subject}.txt.gz."
+            echo "Check ${log_dir}/blast_filter.log and ${log_dir}/blast_filter.err"
+        fi
     done
-    if [ ! $? -eq 0 ]
-    then
-        echo "Something went wrong while filtering BLAST results" | tee -a ${log_file}
-        echo "Aborting" | tee -a ${log_file}
-        exit 0
-    else
-        echo ""  | tee -a ${log_file}
-        echo "        Finished filtering BLAST results" | tee -a ${log_file}
-        echo "        Files in the ${prep_dir} directory were obtained by filtering the BLAST results" | tee -a ${log_file}
-    fi
+done
+if [ ! $? -eq 0 ]
+then
+    echo "Something went wrong while filtering BLAST results" | tee -a ${log_file}
+    echo "Aborting" | tee -a ${log_file}
+    exit 0
+else
+    echo ""  | tee -a ${log_file}
+    echo "        Finished filtering BLAST results" | tee -a ${log_file}
+    echo "        Files in the ${prep_dir} directory were obtained by filtering the BLAST results" | tee -a ${log_file}
 fi
 echo "        Removing temporary files" | tee -a ${log_file}
 rm -rf ${tmp_dir}
