@@ -87,9 +87,6 @@ then
     echo "Control file ${control_file} missing. Exiting"
     exit 0
 fi
-
-
-
 num_proc=$(nproc)
 if [ -z "${threads}" ]
 then
@@ -102,30 +99,19 @@ else
         exit
     fi
 fi
-check_deps=$(check_deps.sh)
-dep_test=$(echo "${check_deps}" | grep -wc 0)
-if [ "${dep_test}" -gt 0 ]
-then
-    echo "${check_deps}" | grep -w 0 | cut -f2
-    echo "Exiting"
-    exit 0
-fi
 config_file=$(find $(dirname $(which orthofinder.py )) | grep config)
 makedb_command=$(cat ${config_file} | jq .${search_method}.db_cmd | sed -e 's/"//g')
-echo "${makedb_command}"
 if [ -z "${makedb_command}" ] || [ "${makedb_command}" == "null" ]
 then
     echo "Invalid database command, Exiting"
     exit
 fi
-
 search_command=$(cat ${config_file} | jq .${search_method}.search_cmd | sed -e 's/"//g')
 if [ -z "${search_command}" ] || [ "${search_command}" == "null" ]
 then
     echo "Invalid search command, Exiting" 
     exit
 fi
-
 cur_date=$(date +%h%d)
 cur_dir=$(pwd)
 uuid=$(uuidgen | cut -d- -f5 )
@@ -136,14 +122,13 @@ bckp_dir="${prep_dir}/resume_bckp"
 log_file="OrthoPrep-${prep_date}.log"
 log_file="${log_dir}/${log_file}"
 mkdir -p "${prep_dir}" "${tmp_dir}" "${log_dir}" "${bckp_dir}"
-
 if [ ! -f "${prep_dir}/SpeciesIDs.txt" ] || [ ! -d "${prep_dir}/masked_seqs" ] || [ ! -f "${prep_dir}/Sequence_eff_len.tsv" ]
 then
     echo "Missing required files. Exiting" | tee -a ${log_file}
     exit
 else
     dos2unix ${prep_dir}/SpeciesIDs.txt
-    file_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt | sed -e "s|^|${prep_dir}/masked_seqs/Species|;s|$|.fa|")
+    file_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt | grep -v "#" | sed -e "s|^|${prep_dir}/masked_seqs/Species|;s|$|.fa|")
     file_test=$(file $(echo "${file_list}") | grep -wc "No such file or directory" )
     if [ "${file_test}" -gt 0 ]
     then
@@ -166,7 +151,7 @@ then
 fi
 echo -e "Number of threads\t->\t${threads}"         | tee -a ${log_file}
 echo "#############################################################"
-species_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt)
+species_list=$(cut -d\: -f1 ${prep_dir}/SpeciesIDs.txt | grep -v "#")
 db_cmd_list=""
 search_cmd_list=""
 for query in ${species_list}
@@ -180,7 +165,6 @@ do
     for subject in ${species_list}
     do
         cur_search_cmd=$(echo "${search_command}" | sed -e "s|DATABASE|${prep_dir}/${search_method}DBSpecies${query}.dmnd|;s|INPUT|${prep_dir}/masked_seqs/Species${subject}.fa|;s|OUTPUT|${prep_dir}/Blast${subject}_${query}.txt|")
-        echo "${cur_search_cmd}"
         search_cmd_list=$(echo -e "${search_cmd_list}\n${cur_search_cmd}")
     done
 done
@@ -208,13 +192,12 @@ then
     mv ${bckp_dir}/Blast*.gz ${prep_dir}
     exit
 fi
-
 echo "Step 3. Filtering BLAST results based on size differences" | tee -a ${log_file}
-species_num=$(cat ${prep_dir}/SpeciesIDs.txt | cut -d\: -f1)
 eff_len_file="Sequence_eff_len.tsv"
-for query in ${species_num}
+blast_filter_cmd_list=""
+for query in ${species_list}
 do
-    for subject in ${species_num}
+    for subject in ${species_list}
     do
         if [ "${run_mode}" == "custom" ]
         then
@@ -223,27 +206,23 @@ do
             short_frac=$(awk -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $3}}' ${control_file})
             long_frac=$(awk  -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $4}}' ${control_file})
         fi
-        echo "op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}" >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-        op_blast_filter.py       ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}  >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-        if [ $? -eq 0 ]
-        then
-            mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${bckp_dir}
-            mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
-        else
-            echo "Error filtering Blast${query}_${subject}.txt.gz."
-            echo "Check ${log_dir}/blast_filter.log and ${log_dir}/blast_filter.err"
-        fi
+        cur_bf_cmd="op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac} > ${log_dir}/blast_filter_${query}_${subject}.log 2> ${log_dir}/blast_filter_${query}_${subject}.err"
+        blast_filter_cmd_list=$(echo -e "${blast_filter_cmd_list}\n${cur_bf_cmd}")
     done
 done
-if [ ! $? -eq 0 ]
+blast_filter_cmd_list=$(echo "${blast_filter_cmd_list}" | sort -V | uniq | grep -v ^$ | grep .)
+echo "${blast_filter_cmd_list}" | parallel -j ${threads} > ${log_dir}/blast_filter.log 2> ${log_dir}/blast_filter.err
+if [ $? -eq 0 ]
 then
-    echo "Something went wrong while filtering BLAST results" | tee -a ${log_file}
-    echo "Aborting" | tee -a ${log_file}
-    exit 0
-else
+    mv ${prep_dir}/Blast*.txt.gz ${bckp_dir}
+    mv ${tmp_dir}/Blast*.txt.gz ${prep_dir}
     echo ""  | tee -a ${log_file}
     echo "        Finished filtering BLAST results" | tee -a ${log_file}
-    echo "        Files in the ${prep_dir} directory were obtained by filtering the BLAST results" | tee -a ${log_file}
+else
+    echo "Error filtering BLAST results"
+    echo "Aborting" | tee -a ${log_file}
+    exit 0
+    echo "Check ${log_dir}/blast_filter.log and ${log_dir}/blast_filter.err"
 fi
 echo "        Removing temporary files" | tee -a ${log_file}
 rm -rf ${tmp_dir}

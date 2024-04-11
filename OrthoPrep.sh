@@ -280,6 +280,7 @@ then
     echo "Step 4. Filtering BLAST results based on size differences" | tee -a ${log_file}
     species_num=$(cat ${prep_dir}/SpeciesIDs.txt | dos2unix | cut -d\: -f1)
     eff_len_file="Sequence_eff_len.tsv"
+    blast_filter_cmd_list=""
     for query in ${species_num}
     do
         for subject in ${species_num}
@@ -291,27 +292,22 @@ then
                 short_frac=$(awk -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $3}}' ${control_file})
                 long_frac=$(awk  -v q="${q_fasta}" -v s="${s_fasta}" '{if((($1==q) && ($2==s)) || (($2==q)&&($1==s))){print $4}}' ${control_file})
             fi
-            echo "op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac}" >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-            op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac} >> ${log_dir}/blast_filter.log 2>> ${log_dir}/blast_filter.err
-            if [ $? -eq 0 ]
-            then
-                mv ${prep_dir}/Blast${query}_${subject}.txt.gz ${bckp_dir}
-                mv ${tmp_dir}/Blast${query}_${subject}.txt.gz ${prep_dir}
-            else
-                echo "Error filtering Blast${query}_${subject}.txt.gz."
-                echo "Check ${log_dir}/blast_filter.log and ${log_dir}/blast_filter.err"
-            fi
+            cur_bf_cmd="op_blast_filter.py ${prep_dir} ${query} ${subject} ${eff_len_file} ${short_frac} ${long_frac} > ${log_dir}/blast_filter_${query}_${subject}.log 2> ${log_dir}/blast_filter_${query}_${subject}.err"
+            blast_filter_cmd_list=$(echo -e "${blast_filter_cmd_list}\n${cur_bf_cmd}")
         done
     done
-    if [ ! $? -eq 0 ]
+    blast_filter_cmd_list=$(echo "${blast_filter_cmd_list}" | sort -V | uniq | grep -v ^$ | grep .)
+    echo "${blast_filter_cmd_list}" | parallel -j ${threads} > ${log_dir}/blast_filter.log 2> ${log_dir}/blast_filter.err
+    if [ $? -eq 0 ]
     then
-        echo "Something went wrong while filtering BLAST results" | tee -a ${log_file}
-        echo "Aborting" | tee -a ${log_file}
-        exit 0
-    else
+        mv ${prep_dir}/Blast*.txt.gz ${bckp_dir}
+        mv ${tmp_dir}/Blast*.txt.gz ${prep_dir}
         echo ""  | tee -a ${log_file}
         echo "        Finished filtering BLAST results" | tee -a ${log_file}
-        echo "        Files in the ${prep_dir} directory were obtained by applying strict filters to the BLAST results" | tee -a ${log_file}
+    else
+        echo "Error filtering BLAST results"
+        echo "Aborting" | tee -a ${log_file}
+        exit 0
     fi
 fi
 if [ "${masking}" == "TRUE" ]

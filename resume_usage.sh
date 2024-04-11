@@ -25,9 +25,7 @@ function usage(){
     echo "  --control_file and --long_frac/--short_frac options are mutually exclusive"
     echo
     echo "Examples:"
-    echo "  OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --short_frac 0.25 --long_frac 0.2 --threads 16"
-    echo "  OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --control_file control.tsv --threads 16"
-    echo "  OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --control_file control.tsv --masking FALSE --threads 16"
-    echo "  OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --control_file control.tsv --eff_len FALSE --threads 16"
+    echo "  resume_OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --short_frac 0.25 --long_frac 0.2 --threads 16 --search_method diamond"
+    echo "  resume_OrthoPrep.sh --prep_dir /path/to/previous/orthoprep/run --control_file control.tsv --threads 16 --search_method diamond"
 	}
 export -f usage
