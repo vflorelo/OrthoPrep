@@ -168,21 +168,23 @@ then
     echo "${check_deps}" | grep -w 0 | cut -f2
     echo "Exiting"
     exit 0
+else
+    orthofinder_cmd=$(echo "${check_deps}" | grep orthofinder | cut -f3)
 fi
 
-config_file=$(find $(dirname $(which orthofinder.py )) | grep config)
-command_base=$(cat ${config_file} | jq .${search_method}.search_cmd)
-if [ -z "${command_base}" ] || [ "${command_base}" == "null" ]
+config_file=$(find $(dirname $(which ${orthofinder_cmd} )) -type f -name config.json | grep config.json$ )
+cmd_base=$(cat ${config_file} | jq .${search_method}.search_cmd )
+if [ -z "${cmd_base}" ] || [ "${cmd_base}" == "null" ]
 then
     echo "Invalid search command, Exiting"
     exit
+else
+    cmd_str=$(echo "${cmd_base}" | perl -pe 's/\"//' | awk '{print $1".*"$2}')
 fi
-
-
 cur_date=$(date +%h%d)
 cur_dir=$(pwd)
 uuid=$(uuidgen | cut -d- -f5 )
-prep_date=$(date +%y-%m-%d)
+prep_date=$(date +%Y-%m-%d)
 of_dir="${fasta_dir}/OrthoFinder/Results_${cur_date}/WorkingDirectory"
 of_tmp_dir="${fasta_dir}/${uuid}"
 prep_dir="${cur_dir}/OrthoPrep-${prep_date}"
@@ -225,7 +227,7 @@ fi
 echo -e "Number of threads\t->\t${threads}"         | tee -a ${log_file}
 echo "#############################################################"
 echo "Step 1. Preparing fasta files, and diamond commands" | tee -a ${log_file}
-command_list=$(orthofinder.py -S ${search_method} -op -f ${fasta_dir} 2>> ${log_dir}/diamond_commands.err  | grep -w ^diamond | grep blastp )
+command_list=$(${orthofinder_cmd} -S ${search_method} -op -f ${fasta_dir} 2>> ${log_dir}/diamond_commands.err | grep ${cmd_str} )
 command_list=$(echo "${command_list}" | sed -e "s|${of_dir}|${prep_dir}|g")
 echo "${command_list}" > ${log_dir}/diamond_commands.txt
 num_commands=$(echo "${command_list}" | wc -l)
@@ -321,6 +323,6 @@ rm -rf ${tmp_dir}
 echo | tee -a ${log_file}
 echo "Now you can resume OrthoFinder by running:" | tee -a ${log_file}
 echo | tee -a ${log_file}
-echo "orthofinder.py -b ${prep_dir} [other OrthoFinder options]" | tee -a ${log_file}
+echo "${orthofinder_cmd} -b ${prep_dir} [other OrthoFinder options]" | tee -a ${log_file}
 echo | tee -a ${log_file}
 echo "OrthoPrep v0.0.1" | tee -a ${log_file}
