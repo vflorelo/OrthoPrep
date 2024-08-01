@@ -52,7 +52,7 @@ Once the potential reciprocal best hits are determined, the sequences are revert
 The length intervals can be expressed as a fixed fraction of the protein length, or they can be adjusted based on specific comparisons:
 
 |Species 1                |Species 2                |Size filter|
-|+-----------------------+|+-----------------------+|+---------+|
+|:-----------------------:|:-----------------------:|:---------:|
 |Toxoplasma gondii ME49   |Toxoplasma gondii RH88   |Strict     |
 |Plasmodium falciparum 3D7|Plasmodium reichenowi CDC|Medium     |
 |Plasmodium falciparum 3D7|Toxoplasma gondii RH88   |Relaxed    |
@@ -87,18 +87,20 @@ make_control_file.sh \
 ```
 
 The contents of the resulting tsv file will be:
-```
-Plasmodium_falciparum_3D7.faa	Plasmodium_falciparum_3D7.faa 0.35  0.3
-Plasmodium_falciparum_3D7.faa	Plasmodium_reichenowi_CDC.faa 0.40  0.35
-Plasmodium_falciparum_3D7.faa	Toxoplasma_gondii_ME49.faa  0.45  0.4
-Plasmodium_falciparum_3D7.faa	Toxoplasma_gondii_RH88.faa  0.45  0.4
-Plasmodium_reichenowi_CDC.faa	Plasmodium_reichenowi_CDC.faa 0.35  0.3
-Plasmodium_reichenowi_CDC.faa	Toxoplasma_gondii_ME49.faa  0.45  0.4
-Plasmodium_reichenowi_CDC.faa	Toxoplasma_gondii_RH88.faa  0.45  0.4
-Toxoplasma_gondii_ME49.faa  Toxoplasma_gondii_ME49.faa  0.35  0.3
-Toxoplasma_gondii_ME49.faa  Toxoplasma_gondii_RH88.faa  0.40  0.35
-Toxoplasma_gondii_RH88.faa  Toxoplasma_gondii_RH88.faa  0.35  0.3
-```
+
+|||||
+|:---------------------------:|:---------------------------:|:--:|:--:|
+|Plasmodium_falciparum_3D7.faa|Plasmodium_falciparum_3D7.faa|0.35|0.3 |
+|Plasmodium_falciparum_3D7.faa|Plasmodium_reichenowi_CDC.faa|0.40|0.35|
+|Plasmodium_falciparum_3D7.faa|Toxoplasma_gondii_ME49.faa   |0.45|0.4 |
+|Plasmodium_falciparum_3D7.faa|Toxoplasma_gondii_RH88.faa   |0.45|0.4 |
+|Plasmodium_reichenowi_CDC.faa|Plasmodium_reichenowi_CDC.faa|0.35|0.3 |
+|Plasmodium_reichenowi_CDC.faa|Toxoplasma_gondii_ME49.faa   |0.45|0.4 |
+|Plasmodium_reichenowi_CDC.faa|Toxoplasma_gondii_RH88.faa   |0.45|0.4 |
+|Toxoplasma_gondii_ME49.faa   |Toxoplasma_gondii_ME49.faa   |0.35|0.3 |
+|Toxoplasma_gondii_ME49.faa   |Toxoplasma_gondii_RH88.faa   |0.40|0.35|
+|Toxoplasma_gondii_RH88.faa   |Toxoplasma_gondii_RH88.faa   |0.35|0.3 |
+
 
 Indicating the accepted intervals for keeping potential RBHs when comparing the specified proteomes:
 - When two proteomes of the same species are compared, the tolerance for length differences is at most 35% of the length of the compared proteins
@@ -190,30 +192,44 @@ The full pipeline includes:
 - Masking of sequences before running diamond/BLAST
 - Selecting only pairs of proteins of comparable size with a taxonomy-based tolerance
 
-To test the effectiveness of our preprocessor, we employed sequences from apicomplexan parasites
-We tested two e-value thresholds (1e-3 and 1e-6), two inflation coefficients (1.5 and 1.1) and turned filtering (OrthoPrep) on and off.
+By default, OrthoFinder uses diamond with a permissive e-value (1e-3) and soft-masking of common motifs  with the `--more-sensitive` option. Genes belonging to the same orthogroup are connected by a network approach using MCL with an inflation coefficient of 1.5. 
 
-In the following table we include the number of genes found in the orthogroup containing PfEMP1, a well characterised gene in Plasmodium falciparum
+To assess the effectiveness of our preprocessor, we ran OrthoFinder under several conditions:
+- We tested two e-value thresholds (1e-3 and 1e-6)
+- We evaluated two diamond settings for masking common motifs (with and without the `--more-sensitive` option)
+- We applied the composition bias filter to the obtained BLAST hits
+- We tried two different inflation coefficient values (1.5 and 1.1)
 
-|Test|eval|diamond  |infl|filt |B. bov|C. cio|C. par|C. cay|E. ten|H. tar|Hep|N. can|Nep|P. fal|P. gab|P. gal|P. kno|P. rei|P. viv|S. neu|T. ann|T. gon|OG_sum|
-|+--+|+--+|+-------+|+--+|+---+|+----+|+----+|+----+|+----+|+----+|+----+|+-+|+----+|+-+|+----+|+----+|+----+|+----+|+----+|+----+|+----+|+----+|+----+|+----+|
-|  1 |1e-3|more_sens|1.5 |FALSE|  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  56  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  56  |
-|  2 |1e-3|more_sens|1.1 |FALSE|  1   |  1   |  0   |  4   |  5   |  6   | 9 |  5   | 4 |  80  |  114 |  12  |  11  |  107 |  20  |  5   |  1   |  6   |  391 |
-|  3 |1e-3|more_sens|1.5 |TRUE |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  47  |  0   |  0   |  0   |  1   |  0   |  0   |  0   |  0   |  48  |
-|  4 |1e-3|more_sens|1.1 |TRUE |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  58  |  0   |  0   |  0   |  60  |  0   |  0   |  0   |  0   |  118 |
-|  5 |1e-3|         |1.5 |FALSE|      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-|  6 |1e-3|         |1.5 |TRUE |      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-|  7 |1e-3|         |1.1 |FALSE|      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-|  8 |1e-3|         |1.1 |TRUE |      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-|  9 |1e-3|more_sens|1.5 |FALSE|      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-| 10 |1e-3|more_sens|1.5 |TRUE |      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-| 11 |1e-3|more_sens|1.1 |FALSE|      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-| 12 |1e-3|more_sens|1.1 |TRUE |      |      |      |      |      |      |   |      |   |      |      |      |      |      |      |      |      |      |      |
-| 13 |1e-6|N/A      |1.5 |FALSE|  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  51  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  51  |
-| 14 |1e-6|N/A      |1.5 |TRUE |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  46  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  46  |
-| 15 |1e-6|N/A      |1.1 |FALSE|  0   |  0   |  0   |  1   |  1   |  1   | 3 |  1   | 2 |  72  |  102 |  1   |  4   |  99  |  3   |  1   |  0   |  1   |  292 |
-| 16 |1e-6|N/A      |1.1 |TRUE |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  61  |  7   |  0   |  0   |  63  |  0   |  0   |  0   |  0   |  131 |
+In the following table we include the number of genes found in the orthogroup containing PfEMP1, a well characterised gene in _Plasmodium falciparum_
 
-PfEMP1 is known to be present only in Plasmodium species belonging to the Laverania group, P. falciparum (~60 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/20018734/)), P. reichenowi (>50 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/23725540/) ) and to a lesser extent in P. gaboni (? copies ?ref).
 
-By using the default settings of OrthoFinder (1), we were only able to find 56 copies of PfEMP1 in the _P. falciparum_ genome, and the genes corresponding to _P. reichenowi_ were placed in a separate orthogroup. The corresponding orthologues from _P. reichenowi_ and _P. gaboni_ were detected by decreasing the inflation coefficient (2), however, this brought several erroneous orthologs corresponding mostly to false matches arising from LCRs. By filtering the diamond/BLAST hits with OrthoPrep (3), we were able to keep the orthologs from _P. reichenowi_, without including the erroneous hits that came with decreasing the inflation coefficient. In the default settings, OrthoFinder uses diamond with soft-masking of highly abundant motifs ([ref](https://github.com/bbuchfink/diamond/wiki/3.-Command-line-options#sensitivity-modes)), but since OrthoPrep already masks the sequences based on composition, we
+|Test|e-value|diamond       |I.C.|OrthoPrep|B. bov|C. cio|C. par|C. cay|E. ten|H. tar|Hep|N. can|Nep|P. fal|P. gab|P. gal|P. kno|P. rei|P. viv|S. neu|T. ann|T. gon|Total|
+|:--:|:-----:|:------------:|:--:|:-------:|:----:|:----:|:----:|:----:|:----:|:----:|:-:|:----:|:-:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:---:|
+|  1 | 1e-3  |more_sensitive|1.5 |    ×    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  56  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 56  |
+|  2 | 1e-3  |more_sensitive|1.5 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  47  |  0   |  0   |  0   |  1   |  0   |  0   |  0   |  0   | 48  |
+|  3 | 1e-3  |more_sensitive|1.1 |    ×    |  1   |  1   |  0   |  4   |  5   |  6   | 9 |  5   | 4 |  80  |  114 |  12  |  11  |  107 |  20  |  5   |  1   |  6   | 391 |
+|  4 | 1e-3  |more_sensitive|1.1 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  58  |  0   |  0   |  0   |  60  |  0   |  0   |  0   |  0   | 118 |
+|  5 | 1e-3  |N/A           |1.5 |    ×    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  53  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 53  |
+|  6 | 1e-3  |N/A           |1.5 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  47  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 47  |
+|  7 | 1e-3  |N/A           |1.1 |    ×    |  0   |  0   |  0   |  1   |  1   |  1   | 4 |  1   | 2 |  72  |  104 |  1   |  4   |  99  |  3   |  1   |  0   |  1   | 295 |
+|  8 | 1e-3  |N/A           |1.1 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  61  |  6   |  0   |  0   |  61  |  0   |  0   |  0   |  0   | 128 |
+|  9 | 1e-6  |more_sensitive|1.5 |    ×    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  56  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 56  |
+| 10 | 1e-6  |more_sensitive|1.5 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  47  |  0   |  0   |  0   |  1   |  0   |  0   |  0   |  0   | 48  |
+| 11 | 1e-6  |more_sensitive|1.1 |    ×    |  1   |  1   |  0   |  4   |  5   |  6   | 9 |  5   | 4 |  75  |  107 |  3   |  6   |  102 |  5   |  6   |  1   |  6   | 346 |
+| 12 | 1e-6  |more_sensitive|1.1 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 6 |  0   | 0 |  39  |  41  |  6   |  60  |  40  |  99  |  0   |  0   |  0   | 291 |
+| 13 | 1e-6  |N/A           |1.5 |    ×    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  51  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 51  |
+| 14 | 1e-6  |N/A           |1.5 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  46  |  0   |  0   |  0   |  0   |  0   |  0   |  0   |  0   | 46  |
+| 15 | 1e-6  |N/A           |1.1 |    ×    |  0   |  0   |  0   |  1   |  1   |  1   | 3 |  1   | 2 |  72  |  102 |  1   |  4   |  99  |  3   |  1   |  0   |  1   | 292 |
+| 16 | 1e-6  |N/A           |1.1 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  61  |  7   |  0   |  0   |  63  |  0   |  0   |  0   |  0   | 131 |
+
+PfEMP1 is known to be present only in _Plasmodium_ species belonging to the Laverania group, _P. falciparum_ (~60 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/20018734/)), _P. reichenowi_ (>50 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/23725540/) ) and to a lesser extent in _P. gaboni_ ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). When we used the default settings, we were not able to capture the PfEMP1 orthologs in _P. reichenowi_ (1). By decreasing the inflation coefficient to 1.1 we were able to identify orthologs in _P. reichenowi_, however, by doing this without filtering the results, several false-positive matches were obtained (3,7,11,15), leading to the wrong conclusion that PfEMP1 has homologues in species outside of the Laverania group, and even outside of the _Plasmodium_ genus. However, when we apply a composition bias filter (4,8,12,16) we obtain cleaner results that are in line with previous findings about PfEMP1 ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). The e-value threshold did not impact significantly the distribution of PfEMP1, however, the `--more-sensitive` option  of diamond produced unexpected results, even when applying the composition bias filter (4 vs 8, 12 vs 16).
+
+After using PfEMP1 as an initial benchmark of the OrthoPrep parameters, we then proceeded to assess the effectiveness of OrthoPrep by comparing the inferred orthogroups with those inferred using OrthoFinder without any filters applied to the sequences. The most evident effect was a significant increase in the number of orthogroups with only two species, and a slight decrease in the number of orthogroups containing all 18 species in the assessment. Interestingly, the number of orthogroups containing 3,4,6,7,9-15 species increased by running OrthoPrep on the sequences.
+Since most of the resulting orthogroups 
+![of_vs_op](images/default_vs_orthoprep.png)
+
+
+
+![sp_per_og_norm](images/species_per_orthogroup_norm.png)
+
+![sp_per_og_sens](images/species_per_orthogroup_sens.png)

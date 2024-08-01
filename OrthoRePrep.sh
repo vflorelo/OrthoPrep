@@ -1,5 +1,5 @@
 #!/bin/bash
-usage="$(dirname $0)/resume_usage.sh"
+usage="$(dirname $0)/reusage.sh"
 source ${usage}
 run_mode="normal"
 while [ "$1" != "" ]
