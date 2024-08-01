@@ -267,6 +267,7 @@ then
             diamond \
                 makedb \
                 --threads ${threads} \
+                --ignore-warnings \
                 --db ${prep_dir}/${search_method}DB${base_name}.dmnd \
                 --in ${prep_dir}/${base_name}.fa >> ${log_dir}/diamond.log 2>> ${log_dir}/diamond.err
         done
