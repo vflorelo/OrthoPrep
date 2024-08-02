@@ -17,8 +17,8 @@ for iter in $(seq 1 ${fasta_iters})
 do
     start_line=$(echo "${iter}" | awk '{print (($1-1)*1000)+1}')
     fasta_sub_list=$(echo "${fasta_list}" | tail -n+${start_line} | head -n1000)
-    parallel -j ${threads} get_lengths ::: ${fasta_dir} ::: "${fasta_sub_list[@]}" >> ${cur_dir}/og_lengths.tmp.tsv
+    parallel -j ${threads} get_lengths ::: ${fasta_dir} ::: "${fasta_sub_list[@]}" >> ${work_dir}/og_lengths.tmp.tsv
 done
-echo -e "og_id\tlengths\n$(sort -V ${cur_dir}/og_lengths.tmp.tsv | uniq | grep -v ^$ | grep .)" > ${work_dir}/og_lengths.tsv
-rm ${cur_dir}/og_lengths.tmp.tsv
+echo -e "og_id\tlengths\n$(sort -V ${work_dir}/og_lengths.tmp.tsv | uniq | grep -v ^$ | grep .)" > ${work_dir}/og_lengths.tsv
+rm ${work_dir}/og_lengths.tmp.tsv
 get_og_stats.py ${work_dir}/og_lengths.tsv ${work_dir}/og_stats.tsv
