@@ -172,7 +172,7 @@ OrthoPrep.sh \
 
 ## Output
 
-OrthoPrep produces a directory containing filtered diamond/BLAST tables that can be directly passed to OrthoFinder.
+OrthoPrep produces a directory that contains filtered diamond/BLAST files which can be directly passed to OrthoFinder with the option `-b`
 
 ## Background
 
@@ -194,14 +194,34 @@ The full pipeline includes:
 
 By default, OrthoFinder uses diamond with a permissive e-value (1e-3) and soft-masking of common motifs  with the `--more-sensitive` option. Genes belonging to the same orthogroup are connected by a network approach using MCL with an inflation coefficient of 1.5. 
 
-To assess the effectiveness of our preprocessor, we ran OrthoFinder under several conditions:
-- We tested two e-value thresholds (1e-3 and 1e-6)
-- We evaluated two diamond settings for masking common motifs (with and without the `--more-sensitive` option)
-- We applied the composition bias filter to the obtained BLAST hits
-- We tried two different inflation coefficient values (1.5 and 1.1)
+### Initial assessment of OrthoPrep
+
+#### Apicomplexan dataset
+For the different tests we ran, we used the reference proteomes of the following organisms:
+
+|Organism|Protein count|Source|Organism|Protein count|Source|
+|:------:|:-----------:|:----:|:------:|:-----------:|:----:|
+|_Babesia bovis_|3974|[PiroplasmaDB](https://piroplasmadb.org/piro/app)|_Cardiosporidium cionae_|4566|[RefSeq](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_015476325.1/)|
+|_Cryptosporidium parvum_|3944|[CryptoDB](https://cryptodb.org/cryptodb/app)|_Cyclospora cayetanensis_|7153|[ToxoDB](https://toxodb.org/toxo/app)|
+|_Eimeria tenella_|7268|[ToxoDB](https://toxodb.org/toxo/app)|_Haemoproteus tartakovskyi_|4860|[PlasmoDB](https://plasmodb.org/plasmo/app/)|
+|_Hepatocystis_|5341|[PlasmoDB](https://plasmodb.org/plasmo/app/)|_Neospora caninum_|7364|[ToxoDB](https://toxodb.org/toxo/app)|
+|_Nephromyces_|10628|[RefSeq](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_015657535.1/)|_Plasmodium falciparum_|5389|[PlasmoDB](https://plasmodb.org/plasmo/app/)|
+|_Plasmodium gaboni_|5356|[PlasmoDB](https://plasmodb.org/plasmo/app/)|_Plasmodium gallinaceum_|5286|[PlasmoDB](https://plasmodb.org/plasmo/app/)|
+|_Plasmodium knowlesi_|5328|[PlasmoDB](https://plasmodb.org/plasmo/app/)|_Plasmodium reichenowi_|5699|[PlasmoDB](https://plasmodb.org/plasmo/app/)|
+|_Plasmodium vivax_|6523|[PlasmoDB](https://plasmodb.org/plasmo/app/)|_Sarcocystis neurona_|6965|[ToxoDB](https://toxodb.org/toxo/app)|
+|_Theileria annulata_|3795|[PiroplasmaDB](https://piroplasmadb.org/piro/app/)|_Toxoplasma gondii_|8322|[ToxoDB](https://toxodb.org/toxo/app)|
+
+#### Diamond/BLAST, MCL and size filtering parameters
+To assess the impact of OrthoPrep, we ran OrthoFinder under several conditions:
+- We used two e-value thresholds: 1e<sup>-3</sup> and 1e<sup>-6</sup>
+- We used diamond with and without the `--more-sensitive` option
+- We used two inflation coefficient values for MCL: 1.5 and 1.1
+
+We compared the orthogroups obtained using all the combinations of the above parameters with and without preprocessing the sequences with OrthoPrep
 
 In the following table we include the number of genes found in the orthogroup containing PfEMP1, a well characterised gene in _Plasmodium falciparum_
 
+#### PfEMP1
 
 |Test|e-value|diamond       |I.C.|OrthoPrep|B. bov|C. cio|C. par|C. cay|E. ten|H. tar|Hep|N. can|Nep|P. fal|P. gab|P. gal|P. kno|P. rei|P. viv|S. neu|T. ann|T. gon|Total|
 |:--:|:-----:|:------------:|:--:|:-------:|:----:|:----:|:----:|:----:|:----:|:----:|:-:|:----:|:-:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:---:|
@@ -222,14 +242,49 @@ In the following table we include the number of genes found in the orthogroup co
 | 15 | 1e-6  |N/A           |1.1 |    ×    |  0   |  0   |  0   |  1   |  1   |  1   | 3 |  1   | 2 |  72  |  102 |  1   |  4   |  99  |  3   |  1   |  0   |  1   | 292 |
 | 16 | 1e-6  |N/A           |1.1 |    ✓    |  0   |  0   |  0   |  0   |  0   |  0   | 0 |  0   | 0 |  61  |  7   |  0   |  0   |  63  |  0   |  0   |  0   |  0   | 131 |
 
-PfEMP1 is known to be present only in _Plasmodium_ species belonging to the Laverania group, _P. falciparum_ (~60 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/20018734/)), _P. reichenowi_ (>50 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/23725540/) ) and to a lesser extent in _P. gaboni_ ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). When we used the default settings, we were not able to capture the PfEMP1 orthologs in _P. reichenowi_ (1). By decreasing the inflation coefficient to 1.1 we were able to identify orthologs in _P. reichenowi_, however, by doing this without filtering the results, several false-positive matches were obtained (3,7,11,15), leading to the wrong conclusion that PfEMP1 has homologues in species outside of the Laverania group, and even outside of the _Plasmodium_ genus. However, when we apply a composition bias filter (4,8,12,16) we obtain cleaner results that are in line with previous findings about PfEMP1 ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). The e-value threshold did not impact significantly the distribution of PfEMP1, however, the `--more-sensitive` option  of diamond produced unexpected results, even when applying the composition bias filter (4 vs 8, 12 vs 16).
+PfEMP1 is known to be present only in _Plasmodium_ species belonging to the Laverania group, _P. falciparum_ (~60 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/20018734/)), _P. reichenowi_ (>50 copies, [ref](https://pubmed.ncbi.nlm.nih.gov/23725540/) ) and to a lesser extent in _P. gaboni_ ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). When we used the default settings, we were not able to capture the PfEMP1 orthologs in _P. reichenowi_ (1). By decreasing the inflation coefficient to 1.1 we were able to identify orthologs in _P. reichenowi_, however, by doing this without filtering the results, several false-positive matches were obtained (3,7,11,15), leading to the wrong conclusion that PfEMP1 has homologues in species outside of the Laverania group, and even outside of the _Plasmodium_ genus. However, when we preprocessed the sequences with OrthoPrep (4,8,12,16) we obtained cleaner results that are in line with previous findings about PfEMP1 ([ref](https://pubmed.ncbi.nlm.nih.gov/26456841/)). The e-value threshold did not impact significantly the distribution of PfEMP1, however, the `--more-sensitive` option  of diamond produced unexpected results, even when using OrthoPrep (4 vs 8, 12 vs 16).
 
-After using PfEMP1 as an initial benchmark of the OrthoPrep parameters, we then proceeded to assess the effectiveness of OrthoPrep by comparing the inferred orthogroups with those inferred using OrthoFinder without any filters applied to the sequences. The most evident effect was a significant increase in the number of orthogroups with only two species, and a slight decrease in the number of orthogroups containing all 18 species in the assessment. Interestingly, the number of orthogroups containing 3,4,6,7,9-15 species increased by running OrthoPrep on the sequences.
-Since most of the resulting orthogroups 
+#### Distribution of orthogroups
+
+After using PfEMP1 as an initial proxy of the OrthoPrep parameters, we then proceeded to assess the effectiveness of OrthoPrep by comparing the inferred orthogroups with those inferred using OrthoFinder without any filters applied to the sequences. The most evident effect was a significant increase in the number of orthogroups with only two species, and a slight decrease in the number of orthogroups containing all 18 species in the assessment. Interestingly, the number of orthogroups containing 3,4,6,7,9-15 species increased by running OrthoPrep on the sequences.
+
 ![of_vs_op](images/default_vs_orthoprep.png)
 
+### Orthobench
+
+Once we explored the Apicomplexan dataset, we wanted to evaluate the impact of OrthoPrep by benchmarking different parameters of OrthoPrep and OrthoFinder against a collection of expert-curated reference orhtogroups ([ref](https://pubmed.ncbi.nlm.nih.gov/33022036/)).
+
+The benchmarks include a set of 12 reference proteomes:
+
+||||
+|:----------------------:|:-----------------------:|:----------------------:|
+|_Caenorhabditis elegans_|_Canis familiaris_       |_Ciona intestinalis_    |
+|_Danio rerio_           |_Drosophila melanogaster_|_Gallus gallus_         |
+|_Homo sapiens_          |_Monodelphis domestica_  |_Mus musculus_          |
+|_Pan troglodytes_       |_Rattus norvegicus_      |_Tetraodon nigroviridis_|
+
+We used the same combinations of parameters as above, but we also included two types of filtering: strict filtering where the difference in sizes between protein pairs can be up to 45% in the case of proteins coming from different genera, and a relaxed filter where the differences in size can be up to 60% (see table below)
+
+|Query                |Subject                  |Strict filter|Relaxed filter|
+|:-------------------:|:-----------------------:|:-----------:|:------------:|
+|_Homo sapiens_       |_Homo sapiens_           |[0.30,0.35]  |[0.25,0.35]   |
+|_Drosophila simulans_|_Drosophila melanogaster_|[0.35,0.40]  |[0.40,0.50]   |
+|_Homo sapiens_       |_Drosophila melanogaster_|[0.40,0.45]  |[0.50,0.60]   |
 
 
-![sp_per_og_norm](images/species_per_orthogroup_norm.png)
+In total we had 24 combinations, 16 corresponding to OrthoPrep+OrthoFinder, and 8 corresponding to Orthofinder alone (see figure below)
 
-![sp_per_og_sens](images/species_per_orthogroup_sens.png)
+#### Precision and recall
+
+![precision_recall](images/precision_recall.png)
+
+In all cases OrthoPrep increased the precision of the assigned orthogroups, and although there was a decrease in the recall, the difference in precision was larger than the decrement in recall. The use of a smaller inflation coefficient resulted in a higher recall but the precision was severely affected. The relaxed filter appear to give better results than the strict filter, but the effectiveness of the filter will always depend on the phylogenetic scope of the organisms included in the study. There was no significant difference between using the `--more-sensitive` option for diamond.
+
+#### Number of recovered genes and correctly assigned orthogroups
+
+The benchmarks from orthobench include the number of orthogroups that were correctly identified when compared to the reference orthogroups, that is, all the expected genes in a given orthogroup were identified in a single orthogroup that did not contain any additional genes. Whereas the number of correctly identified orthogroups using OrthoPrep+OrthoFinder is well on par with those identified with OrthoFinder alone, the total number of genes that were assigned to orthogroups was at least 5% lower when using OrthoPrep+OrthoFinder.
+
+![exacts_rescue](images/exacts_rescue.png)
+
+#### Metrics of the inferred orthogroups
+
