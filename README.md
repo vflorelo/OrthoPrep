@@ -250,6 +250,33 @@ After using PfEMP1 as an initial proxy of the OrthoPrep parameters, we then proc
 
 ![of_vs_op](images/default_vs_orthoprep.png)
 
+#### Metrics of the inferred orthogroups
+
+##### Orthogroup protein count
+
+By applying a protein-length filter, OrthoPrep effectively changed the number of orthogroups in the Apicomplexan dataset, however, the number of proteins per orthogroup was not significantly different between the orthogroups inferred using OrthoPrep+OrthoFinder, and the ones inferred using OrthoFinder alone.
+
+|![apis_count](images/apis_count_sens.png)|
+|:---------------------------------------:|
+|Distribution of protein counts per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+##### Protein median length
+
+OrthoPrep limits the number of candidates for the detection of reciprocal best hits, as a consequence, there was a slight shift in the protein median length per orthogroup in all the tested conditions.
+
+|![apis_median](images/apis_median_sens.png)|
+|:-----------------------------------------:|
+|Distribution of protein median length per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+##### Protein length median absolute deviation (MAD)
+
+One interesting metric to assess was the protein length median absolute deviation. Values approaching 0 reflect the uniformity of protein lengths, whereas higher values correspond to orthogroups containing proteins with highly variable protein lengths. In all the tested conditions, OrthoPrep significantly shifted the MAD per orthogroup, regardless of the e-value or inflation coefficient, which in turn results in multiple sequence alignments of higher quality and phylogenetic signal ([ref](#)).
+
+|![apis_mad](images/apis_mad_sens.png)|
+|:-----------------------------------:|
+|Distribution of protein length median absolute deviation per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+
 ### Orthobench
 
 Once we explored the Apicomplexan dataset, we wanted to evaluate the impact of OrthoPrep by benchmarking different parameters of OrthoPrep and OrthoFinder against a collection of expert-curated reference orhtogroups ([ref](https://pubmed.ncbi.nlm.nih.gov/33022036/)).
@@ -288,3 +315,44 @@ The benchmarks from orthobench include the number of orthogroups that were corre
 
 #### Metrics of the inferred orthogroups
 
+As it was the case with the apicomplexan dataset, OrthoPrep slightly increased the number of orthogroups in the bilateria dataset, the median length was slightly decreased and the protein length median absolute deviation was significantly decreased.
+
+##### Orthogroup protein count
+
+|![orthobench_counts](images/og_prot_count_sens_relaxed.png)|
+|:---------------------------------------:|
+|Distribution of protein counts per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+##### Protein median length
+
+|![orthobench_median](images/protein_median_length_sens_relaxed.png)|
+|:-----------------------------------------------------------------:|
+|Distribution of protein median length per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+
+##### Protein length median absolute deviation (MAD)
+
+|![orthobench_median](images/protein_mad_sens_relaxed.png)|
+|:-----------------------------------:|
+|Distribution of protein length median absolute deviation per orthogroup under different conditions. Red bars correspond to orthogroups inferred with OrthoFinder alone, blue bars correspond to orthogroups inferred with OrthoPrep+OrthoFinder. The total number of orthogroups is shown in the plot legends|
+
+#### Unassigned proteins
+
+One concern about the use of OrthoPrep is the proportion of proteins that were classified as unassigned. It is expected from gene content alone, that several genes and proteins are classified as unique or exclusive to specific taxa. In some cases, OrthoPrep classified up to 45% of the total genes as exclusive, this measure however, depends extensively on the datasets included and the filters the user sets on different taxonomic levels, for instance, in the Bilateria dataset, using a relaxed filter resulted in ~1% more of genes assigned to orthogroups.
+
+|![missing_counts](images/unassigned_counts.png)|
+|:---------------------------------------------:|
+|Counts of proteins classified as unassigned under different settings. Cells highlighted in pink correspond to the default settings of OrthoFinder|
+
+#### Lengths of unassigned proteins
+
+There was a slight difference in length distribution of the unassigned proteins only in the Apicomplexan dataset, this could be solved by adjusting the limits for OrthoPrep in the control file. 
+
+|![apis_missing_lengths](images/apis_missing_lengths_sens.png)|
+|:-----------------------------------------------------------:|
+|Length distribution of proteins classified as unassigned using either OrthoPrep+OrthoFinder (blue bars) or OrthoFinder alone (red bars)|
+
+
+### Discussion
+
+Orthogroup assignment remains a difficult, yet an essential task for comparative genomics and evolutionary biology. To this day there is not a one tool to rule them all, and on top of that, results may vary depending on the number of organisms included in the study, the origin, quality and completeness of the starting data. In this work we incorporate some basic assumptions to the process of orthogroup assignment to increase the precision of the inferred orthogroups, we used two datasets and several conditions for orthogroup assignment and we have demonstrated that incorporating a composition-bias size-exclusion filter, we can increase the precision of the inferred orthogroups using OrthoFinder. The tradeoff is an increase in the number of proteins classified as unassigned to any orthogroup. However, this increase can be marginal, as shown in the bilateria dataset. In comparison, SonicParanoid2 is able to capture as much as 80% of the Apicomplexa dataset, yet it is unable to classify important proteins such as PfEMP1 in a defined orthogroup, despite relaxing the inflation coefficient to 1.2.
