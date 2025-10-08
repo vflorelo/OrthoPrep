@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/696297022.svg)](https://doi.org/10.5281/zenodo.14960677)
+
 # OrthoPrep
 
 ## TL/DR
